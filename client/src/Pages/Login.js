@@ -48,7 +48,7 @@ const Login = () => {
               Need an account?{" "}
               <span
                 onClick={(e) => navigate("/register")}
-                className="text-lime-500 cursor-pointer">
+                className="text-blue-600 cursor-pointer">
                 Sign Up
               </span>
             </p>
@@ -76,7 +76,7 @@ const Login = () => {
           <div className="flex justify-between items-center">
             <button
               type="submit"
-              className="bg-lime-500 text-white py-2 px-4 rounded-sm">
+              className="bg-blue-600 text-white py-2 px-4 rounded-sm">
               Login
             </button>
             <span className="text-sm text-gray-500 cursor-pointer">

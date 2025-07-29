@@ -54,13 +54,13 @@ const Register = () => {
               Already have an account?{" "}
               <span
                 onClick={(e) => navigate("/")}
-                className="text-lime-500 cursor-pointer">
+                className="text-blue-600 cursor-pointer">
                 Sign In
               </span>
             </p>
           </div>
           <div className="text-left">
-            <span className="">Full Name</span>
+            <span className="">Họ tên</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -80,17 +80,7 @@ const Register = () => {
             />
           </div>
           <div className="text-left">
-            <span className="">Role</span>
-            <input
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="Role"
-              type="text"
-              className="w-full px-4 py-4 border rounded-lg mb-4"
-            />
-          </div>
-          <div className="text-left">
-            <span className="">Password</span>
+            <span className="">Mật khẩu</span>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -99,11 +89,24 @@ const Register = () => {
               className="w-full px-4 py-4 border rounded-lg mb-4"
             />
           </div>
+           <div className="text-left">
+            <span className="">Quyền</span>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-4 border rounded-lg mb-4"
+            >
+              <option value="">-- Chọn quyền --</option>
+              <option value="admin">Admin</option>
+              <option value="client">Người dùng</option>
+            </select>
+          </div>
+
           <div className="flex justify-between">
             <button
               type="submit"
-              className="bg-lime-500 text-white py-2 px-4 rounded-sm">
-              Register
+              className="bg-blue-600 text-white py-2 px-4 rounded-sm">
+              Đăng ký
             </button>
           </div>
         </form>
