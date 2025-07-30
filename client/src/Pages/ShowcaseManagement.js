@@ -1,28 +1,13 @@
-import React, { useState } from "react";
-import Menubar from "../Components/Menubar";
-import MenuToggle from "../Components/MenuToggle";
-import Navbar from "../Components/Navbar";
+import React, { useEffect } from "react";
 
 const ShowcaseManagement = () => {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const handleMenuToggle = () => {
-    setShowMenu(!showMenu);
-  };
+  useEffect(() => {
+    document.title = "Showcase Management";
+  }, []);
 
   return (
-    <div className="flex">
-      <div
-        className={`w-1/4 h-auto h-screen bg-gray-200 text-gray-500 ${
-          showMenu ? "" : "hidden"
-        } lg:block`}>
-        <Menubar />
-      </div>
-      <div className="w-3/4 h-screen">
-        <Navbar pagename={"Showcase Management"} />
-        <MenuToggle showMenu={showMenu} handleMenuToggle={handleMenuToggle} />
-        <p>Showcase Management</p>
-      </div>
+    <div className="p-6 text-gray-700">
+      <p>Trang quản lý nội dung hiển thị ở đây.</p>
     </div>
   );
 };

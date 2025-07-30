@@ -1,30 +1,15 @@
-import React, { useState } from "react";
-import Menubar from "../Components/Menubar";
-import MenuToggle from "../Components/MenuToggle";
-import Navbar from "../Components/Navbar";
+import React, { useEffect } from "react";
 
-const Settings = () => {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const handleMenuToggle = () => {
-    setShowMenu(!showMenu);
-  };
+const Setting = () => {
+  useEffect(() => {
+    document.title = "Setting";
+  }, []);
 
   return (
-    <div className="flex">
-      <div
-        className={`w-1/4 h-auto h-screen bg-gray-200 text-gray-500 ${
-          showMenu ? "" : "hidden"
-        } lg:block`}>
-        <Menubar />
-      </div>
-      <div className="w-3/4 h-screen">
-        <Navbar pagename={"Settings"} />
-        <MenuToggle showMenu={showMenu} handleMenuToggle={handleMenuToggle} />
-        <p>Settings</p>
-      </div>
+    <div className="p-6 text-gray-700">
+      <p>Trang quản lý nội dung hiển thị ở đây.</p>
     </div>
   );
 };
 
-export default Settings;
+export default Setting;

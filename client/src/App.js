@@ -11,14 +11,20 @@ import {
   Settings,
   ShowcaseManagement,
   UserManagement,
+  KioskPlanPage,
 } from "./Pages/index";
+import Layout from "./Layout"; // ✅ Import layout
+
 const App = () => {
   return (
     <BrowserRouter>
-      <main>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected layout with Menubar + Navbar */}
+        <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/role-management" element={<Role />} />
           <Route path="/content-management" element={<ContentManagement />} />
@@ -28,8 +34,10 @@ const App = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/showcase-management" element={<ShowcaseManagement />} />
           <Route path="/user-management" element={<UserManagement />} />
-        </Routes>
-      </main>
+          <Route path="/kiosk-plans" element={<KioskPlanPage />} />
+
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 };

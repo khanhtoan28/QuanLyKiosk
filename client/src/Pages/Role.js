@@ -1,30 +1,25 @@
-import React, { useState } from "react";
-import Menubar from "../Components/Menubar";
+import React, { useState, useEffect } from "react";
 import MenuToggle from "../Components/MenuToggle";
-import Navbar from "../Components/Navbar";
 import UsersTable from "../Components/Table";
 
 const RoleManagement = () => {
   const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    document.title = "Quản lý tài khoản";
+  }, []);
 
   const handleMenuToggle = () => {
     setShowMenu(!showMenu);
   };
 
   return (
-    <div className="flex">
-      <div
-        className={`w-1/4 h-auto h-screen bg-gray-100 ${
-          showMenu ? "" : "hidden"
-        } lg:block`}>
-        <Menubar />
-      </div>
-      <div className="w-3/4 h-screen">
+    <div className="flex flex-col h-screen">
+      <div className="p-4">
         <MenuToggle showMenu={showMenu} handleMenuToggle={handleMenuToggle} />
-        <Navbar pagename={"Permission and Role Management"} />
-        <div>
-          <UsersTable />
-        </div>
+      </div>
+      <div className="flex-1 overflow-auto p-4">
+        <UsersTable />
       </div>
     </div>
   );

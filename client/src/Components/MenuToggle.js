@@ -3,7 +3,7 @@ import { hide, show } from "../Assets/index";
 
 const MenuToggle = ({ showMenu, handleMenuToggle }) => {
   return (
-    <button className="block lg:hidden" onClick={handleMenuToggle}>
+    <button className="block lg:hidden p-2" onClick={handleMenuToggle}>
       {showMenu ? (
         <img src={hide} alt="Hide Menu" className="h-6 w-6" />
       ) : (

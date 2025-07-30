@@ -9,6 +9,7 @@ import MarketPlace from "./MarketPlcae";
 import Settings from "./Settings";
 import ShowcaseManagement from "./ShowcaseManagement";
 import UserManagement from "./UserManagement";
+import KioskPlanPage from "./KioskPlanPage";
 
 export {
   Login,
@@ -22,4 +23,5 @@ export {
   Settings,
   ShowcaseManagement,
   UserManagement,
+  KioskPlanPage
 };
