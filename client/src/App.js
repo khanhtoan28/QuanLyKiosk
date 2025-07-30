@@ -12,8 +12,9 @@ import {
   ShowcaseManagement,
   UserManagement,
   KioskPlanPage,
+  KioskPlanDetail,        // ✅ thêm export từ Pages/index
 } from "./Pages/index";
-import Layout from "./Layout"; // ✅ Import layout
+import Layout from "./Layout";
 
 const App = () => {
   return (
@@ -34,8 +35,10 @@ const App = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/showcase-management" element={<ShowcaseManagement />} />
           <Route path="/user-management" element={<UserManagement />} />
-          <Route path="/kiosk-plans" element={<KioskPlanPage />} />
 
+          {/* Kiosk plans */}
+          <Route path="/kiosk-plans" element={<KioskPlanPage />} />
+          <Route path="/kiosk-plans/:id" element={<KioskPlanDetail />} /> {/* ✅ thêm */}
         </Route>
       </Routes>
     </BrowserRouter>

@@ -10,6 +10,7 @@ import Settings from "./Settings";
 import ShowcaseManagement from "./ShowcaseManagement";
 import UserManagement from "./UserManagement";
 import KioskPlanPage from "./KioskPlanPage";
+import KioskPlanDetail from "./KioskPlanDetail";
 
 export {
   Login,
@@ -23,5 +24,6 @@ export {
   Settings,
   ShowcaseManagement,
   UserManagement,
-  KioskPlanPage
+  KioskPlanPage,
+  KioskPlanDetail
 };
