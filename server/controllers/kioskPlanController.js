@@ -1,39 +1,28 @@
-// controllers/kioskPlanController.js
 import KioskPlan from "../models/KioskPlan.js";
 import parseExcelFile from "../utils/excelParser.js";
 
-/**
- * Convert Excel serial date or string date -> ISO `YYYY-MM-DD`
- * - Excel serial: tính từ 1899-12-30 (đã xử lý leap-year bug)
- * - String: thử parse dd/MM/yyyy hoặc các format JS nhận
- */
 const toISODate = (value) => {
-  if (!value && value !== 0) return ""; // giữ trống nếu không có
-  // Nếu là số (Excel serial date)
+  if (!value && value !== 0) return "";
   if (typeof value === "number" && !isNaN(value)) {
-    const base = Date.UTC(1899, 11, 30); // 1899-12-30
+    const base = Date.UTC(1899, 11, 30);
     const ms = base + value * 24 * 60 * 60 * 1000;
     const d = new Date(ms);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    return d.toISOString().slice(0, 10);
   }
-  // Nếu là string dd/MM/yyyy
   if (typeof value === "string") {
     const v = value.trim();
-    // dd/MM/yyyy
     const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (m) {
       const [_, dd, mm, yyyy] = m;
       const d = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
       if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
     }
-    // Thử parse mặc định
     const d2 = new Date(v);
     if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10);
   }
-  return ""; // nếu không parse được thì để rỗng
+  return "";
 };
 
-// Chuẩn hoá ngày trong body trước khi lưu/cập nhật
 const normalizePlanDates = (payload = {}) => {
   const out = { ...payload };
   if (payload.deadline !== undefined) out.deadline = toISODate(payload.deadline);
@@ -74,6 +63,7 @@ export const createPlan = async (req, res) => {
   }
 };
 
+
 export const updatePlan = async (req, res) => {
   try {
     const payload = normalizePlanDates(req.body);
@@ -99,9 +89,18 @@ export const deletePlan = async (req, res) => {
 
 export const importExcel = async (req, res) => {
   try {
-    const rows = await parseExcelFile(req.file.path);
-    // Map đúng header -> field của model và convert ngày
-    const mapped = rows.map((r) => ({
+    let rows;
+
+    // ✳️ Bắt lỗi thiếu cột từ parseExcelFile
+    try {
+      const rows = await parseExcelFile(req.file.path); // ← đã được validate và map đầy đủ
+      const created = await KioskPlan.insertMany(rows);
+      res.status(201).json(created);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+
+    const mapped = rows.map((r, index) => ({
       stt: r["STT"] ?? r.stt ?? "",
       hospitalName: r["Tên bệnh viện"] ?? r.hospitalName ?? "",
       lastNote: r["Ghi chú làm việc gần nhất"] ?? r.lastNote ?? "",
@@ -122,6 +121,7 @@ export const importExcel = async (req, res) => {
       his: r["His"] ?? r.his ?? "",
       urlPort: r["Url port"] ?? r.urlPort ?? "",
       bhxhAccount: r["Tài khoản check BHXH"] ?? r.bhxhAccount ?? "",
+      excelOrder: index,
     }));
 
     const created = await KioskPlan.insertMany(mapped);

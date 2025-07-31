@@ -12,7 +12,8 @@ import {
   ShowcaseManagement,
   UserManagement,
   KioskPlanPage,
-  KioskPlanDetail,        // ✅ thêm export từ Pages/index
+  KioskPlanDetail,
+  KioskPlanCreate  
 } from "./Pages/index";
 import Layout from "./Layout";
 
@@ -39,6 +40,7 @@ const App = () => {
           {/* Kiosk plans */}
           <Route path="/kiosk-plans" element={<KioskPlanPage />} />
           <Route path="/kiosk-plans/:id" element={<KioskPlanDetail />} /> {/* ✅ thêm */}
+          <Route path="/kiosk-plans/create" element={<KioskPlanCreate />} />
         </Route>
       </Routes>
     </BrowserRouter>

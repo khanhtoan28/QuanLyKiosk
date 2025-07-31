@@ -1,4 +1,3 @@
-// routes/kioskPlanRoutes.js
 import express from "express";
 import multer from "multer";
 import xlsx from "xlsx";
@@ -8,13 +7,15 @@ import {
   createPlan,
   updatePlan,
   deletePlan,
+  getPlanById,
 } from "../controllers/kioskPlanController.js";
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() }); // ✅ middleware để parse file Excel
+const upload = multer({ storage: multer.memoryStorage() });
 
 // CRUD routes
 router.get("/", getAllPlans);
+router.get("/:id", getPlanById);
 router.post("/", createPlan);
 router.put("/:id", updatePlan);
 router.delete("/:id", deletePlan);
@@ -50,9 +51,8 @@ router.post("/import", upload.single("file"), async (req, res) => {
       his: row["His"] || "",
       urlPort: row["Url port"] || "",
       bhxhAccount: row["Tài khoản check BHXH"] || "",
+      excelOrder: index,
     }));
-
-
 
     await KioskPlan.insertMany(mapped);
     res.json({ message: "✅ Import successful", data: mapped });
@@ -63,3 +63,4 @@ router.post("/import", upload.single("file"), async (req, res) => {
 });
 
 export default router;
+

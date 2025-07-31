@@ -1,21 +1,49 @@
-// src/Components/KioskPlanTable.js
-import React from "react";
+// KioskPlanTable.js
+import React, { useState, useMemo } from "react";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
+import { Eye } from "lucide-react";
 
-const formatExcelDate = (value) => {
+
+const formatDate = (value) => {
   if (!value) return "-";
-  if (!isNaN(value)) {
-    const date = new Date(1900, 0, value - 1);
-    return date.toLocaleDateString("vi-VN");
+
+  // Nếu là số: Excel serial date
+  if (!isNaN(value) && Number(value) > 40000 && Number(value) < 60000) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const result = new Date(excelEpoch.getTime() + value * 86400000);
+    return result.toLocaleDateString("vi-VN");
   }
-  return value;
+
+  const d = new Date(value);
+  return !isNaN(d) ? d.toLocaleDateString("vi-VN") : value;
 };
 
-const KioskPlanTable = ({ data, onEdit, onDelete, onView }) => {
-  const handleDelete = async (id) => {
+const KioskPlanTable = ({ data, onDelete }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const itemsPerPage = 10;
+  const navigate = useNavigate();
+
+  const sortedData = useMemo(() => {
+    return [...data]
+      .sort((a, b) => {
+        if (a.excelOrder !== undefined && b.excelOrder !== undefined) {
+          return a.excelOrder - b.excelOrder;
+        }
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      })
+      .reverse();
+  }, [data]);
+
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const startIdx = (currentPage - 1) * itemsPerPage;
+  const currentData = sortedData.slice(startIdx, startIdx + itemsPerPage);
+
+  const handleDelete = async (ids) => {
     const result = await Swal.fire({
       title: "Bạn chắc chắn xoá?",
-      text: "Bản ghi sẽ bị xoá vĩnh viễn!",
+      text: `Sẽ xoá ${ids.length} bản ghi!`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Xoá",
@@ -25,85 +53,171 @@ const KioskPlanTable = ({ data, onEdit, onDelete, onView }) => {
     });
 
     if (result.isConfirmed) {
-      const ok = await onDelete(id);   // ✅ chờ xoá xong
-      if (ok) {
-        Swal.fire("Đã xoá!", "Bản ghi đã được xoá thành công.", "success");
-      }
+      for (let id of ids) await onDelete(id);
+      Swal.fire("Đã xoá!", "Các bản ghi đã được xoá thành công.", "success");
+      setSelectedIds([]);
     }
   };
 
-  const handleEdit = (plan) => {
-    Swal.fire({
-      title: "Chỉnh sửa kế hoạch",
-      text: `Bạn đang chỉnh kế hoạch của ${plan.hospitalName}`,
-      icon: "info",
-      confirmButtonText: "Đóng",
-    });
-    // onEdit(plan);
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
   };
 
-  return (
-    <table className="min-w-full text-sm text-left border">
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedIds(sortedData.map((item) => item._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
+  const renderPagination = () => {
+    const pages = [];
+    const range = 2;
+    const dot = <span key="dots">...</span>;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (
+        i === 1 ||
+        i === totalPages ||
+        (i >= currentPage - range && i <= currentPage + range)
+      ) {
+        pages.push(
+          <button
+            key={i}
+            className={`w-8 h-8 border rounded ${i === currentPage ? "bg-black text-white" : "bg-white"
+              }`}
+            onClick={() => handlePageChange(i)}
+          >
+            {i}
+          </button>
+        );
+      } else if (
+        pages[pages.length - 1] !== dot &&
+        i !== currentPage + range + 1 &&
+        i !== currentPage - range - 1
+      ) {
+        pages.push(dot);
+      }
+    }
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-4">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="w-8 h-8 border rounded"
+        >
+          &lt;
+        </button>
+        {pages}
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="w-8 h-8 border rounded"
+        >
+          &gt;
+        </button>
+      </div>
+    );
+  };
+
+ return (
+  <div className="overflow-x-auto">
+    {selectedIds.length > 0 && (
+      <div className="mb-2 text-right">
+        <label className="inline-flex items-center mr-4">
+          <input
+            type="checkbox"
+            checked={selectedIds.length === sortedData.length}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="mr-1"
+          />
+          Chọn tất cả
+        </label>
+        <button
+          onClick={() => handleDelete(selectedIds)}
+          className="px-3 py-1 bg-red-500 text-white rounded text-sm"
+        >
+          Xoá {selectedIds.length} mục đã chọn
+        </button>
+      </div>
+    )}
+
+    <table className="min-w-full table-fixed text-sm text-left border">
       <thead className="bg-gray-100 text-xs font-semibold">
         <tr>
-          {[
-            "STT",
-            "Tên bệnh viện",
-            "Deadline",
-            "Mức độ ưu tiên",
-            "Trạng thái làm việc với viện - dev",
-            "Trạng thái xử lý yêu cầu",
-            "Ngày chuyển nghiệm thu",
-            "Hành động",
-          ].map((header, i) => (
-            <th key={i} className="p-2 border">
-              {header}
-            </th>
-          ))}
+          <th className="p-2 border w-[50px] text-center">STT</th>
+          <th className="p-2 border w-[250px]">Tên bệnh viện</th>
+          <th className="p-2 border w-[100px] text-center">Deadline</th>
+          <th className="p-2 border w-[100px] text-center">Ưu tiên</th>
+          <th className="p-2 border w-[200px]">Trạng thái dev</th>
+          <th className="p-2 border w-[200px]">Trạng thái yêu cầu</th>
+          <th className="p-2 border w-[150px] text-center">Ngày nghiệm thu</th>
+          <th className="p-2 border w-[100px] text-center">Hành động</th>
+          <th className="p-2 border w-[40px] text-center">✔</th>
         </tr>
       </thead>
       <tbody>
-        {data.map((plan, idx) => (
-          <tr key={plan._id || idx} className="border-t hover:bg-gray-50">
-            <td className="p-2 border">{plan.stt || idx + 1}</td>
-            <td className="p-2 border">{plan.hospitalName}</td>
-            <td className="p-2 border">{formatExcelDate(plan.deadline)}</td>
-            <td className="p-2 border">{plan.priorityLevel || "-"}</td>
-            <td className="p-2 border">{plan.devStatus || "-"}</td>
-            <td className="p-2 border">{plan.requestStatus || "-"}</td>
-            <td className="p-2 border">{formatExcelDate(plan.deliveryDate)}</td>
-
-            <td className="p-2 border">
-              <div className="flex items-center gap-2 whitespace-nowrap min-w-[220px]">
-                <button
-                  className="inline-flex items-center px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 active:scale-[.98] transition"
-                  onClick={() => handleEdit(plan)}
-                  type="button"
-                >
-                  Sửa
-                </button>
-                <button
-                  className="inline-flex items-center px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 active:scale-[.98] transition"
-                  onClick={() => handleDelete(plan._id)}
-                  type="button"
-                >
-                  Xoá
-                </button>
-                <button
-                  className="inline-flex items-center px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800 active:scale-[.98] transition"
-                  onClick={() => onView(plan)}
-                  type="button"
-                >
-                  Chi tiết
-                </button>
-              </div>
-
+        {currentData.length === 0 ? (
+          <tr>
+            <td colSpan="9" className="p-4 text-center text-gray-500">
+              Không có dữ liệu để hiển thị
             </td>
           </tr>
-        ))}
+        ) : (
+          currentData.map((plan, idx) => (
+            <tr
+              key={plan._id || idx}
+              className="border-t hover:bg-gray-50 h-[48px]"
+            >
+              <td className="p-2 border text-center">{startIdx + idx + 1}</td>
+              <td className="p-2 border truncate">{plan.hospitalName}</td>
+              <td className="p-2 border text-center">
+                {formatDate(plan.deadline)}
+              </td>
+              <td className="p-2 border text-center">
+                {plan.priorityLevel || "-"}
+              </td>
+              <td className="p-2 border truncate">{plan.devStatus || "-"}</td>
+              <td className="p-2 border truncate">
+                {plan.requestStatus || "-"}
+              </td>
+              <td className="p-2 border text-center">
+                {formatDate(plan.deliveryDate)}
+              </td>
+              <td className="p-2 border text-center">
+                <button
+                  className="flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+                  onClick={() =>
+                    navigate(`/kiosk-plans/${plan._id}`, { state: { plan } })
+                  }
+                >
+                  <Eye size={14} /> Xem
+                </button>
+              </td>
+              <td className="p-2 border text-center">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(plan._id)}
+                  onChange={() => toggleSelect(plan._id)}
+                />
+              </td>
+            </tr>
+          ))
+        )}
       </tbody>
     </table>
-  );
-};
+
+    {renderPagination()}
+  </div>
+);
+}
 
 export default KioskPlanTable;

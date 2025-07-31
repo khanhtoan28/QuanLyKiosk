@@ -1,19 +1,33 @@
-import React from "react";
+const ImportExcelButton = ({ onFileSelect, disabled, className = "" }) => {
+  const handleChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-const ImportExcelButton = ({ onFileSelect  }) => {
-    return (
-        <div className="my-4">
-            <label className="inline-block bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 cursor-pointer">
-                📁 Chọn file Excel
-                <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={(e) => onFileSelect(e.target.files[0])}
-                    className="hidden"
-                />
-            </label>
-        </div>
-    );
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Chỉ chấp nhận file Excel .xlsx hoặc .xls");
+      return;
+    }
+
+    onFileSelect(file);
+  };
+
+  return (
+    <label className={`cursor-pointer ${className}`}>
+      📥 Import Excel
+      <input
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleChange}
+        disabled={disabled}
+        hidden
+      />
+    </label>
+  );
 };
 
 export default ImportExcelButton;

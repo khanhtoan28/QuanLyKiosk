@@ -16,11 +16,12 @@ const CreatePlanForm = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     hospitalName: "",
     quantity: "",
-    readerType: "",
+    cccdReaderType: "",
     deviceType: "",
-    responsiblePerson: "",
-    priority: "",
+    personInCharge: "",
+    priorityLevel: "",
   });
+
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
@@ -63,8 +64,8 @@ const CreatePlanForm = ({ onSubmit, onCancel }) => {
         />
         <input
           type="text"
-          name="readerType"
-          value={formData.readerType}
+          name="cccdReaderType"
+          value={formData.cccdReaderType}
           onChange={handleChange}
           placeholder="Loại đầu đọc CCCD"
           className="border px-2 py-1 rounded w-1/4"
@@ -79,16 +80,16 @@ const CreatePlanForm = ({ onSubmit, onCancel }) => {
         />
         <input
           type="text"
-          name="priority"
-          value={formData.priority}
+          name="priorityLevel"
+          value={formData.priorityLevel}
           onChange={handleChange}
           placeholder="Mức độ ưu tiên"
           className="border px-2 py-1 rounded w-1/4"
         />
         <input
           type="text"
-          name="responsiblePerson"
-          value={formData.responsiblePerson}
+          name="personInCharge"
+          value={formData.personInCharge}
           onChange={handleChange}
           placeholder="Người phụ trách"
           className="border px-2 py-1 rounded w-1/4"
@@ -98,9 +99,7 @@ const CreatePlanForm = ({ onSubmit, onCancel }) => {
         <button
           type="submit"
           disabled={submitting}
-          className={`px-4 py-1 rounded text-white ${
-            submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-500"
-          }`}
+          className={`px-4 py-1 rounded text-white ${submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-500"}`}
         >
           {submitting ? "Đang lưu..." : "Lưu"}
         </button>
@@ -129,25 +128,31 @@ const KioskPlanPage = () => {
     try {
       setLoading(true);
       const res = await getAllPlans();
-      const sorted = res.data.sort((a, b) => {
-        const aStt = Number(a.stt) || 0;
-        const bStt = Number(b.stt) || 0;
+
+      const filtered = res.data.filter(p => p.hospitalName?.trim());
+      const sorted = filtered.sort((a, b) => {
+        const aStt = Number(a.stt);
+        const bStt = Number(b.stt);
+        if (isNaN(aStt)) return 1;
+        if (isNaN(bStt)) return -1;
         return aStt - bStt;
       });
+
+
       setPlans(sorted);
     } catch (err) {
+      console.error("Lỗi khi fetch plans:", err);
       Swal.fire("Lỗi", "Không tải được danh sách kế hoạch.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Xoá: gọi API + cập nhật state + trả true/false cho Table để hiển thị thông báo
   const handleDelete = async (id) => {
     try {
       await deletePlan(id);
       setPlans((prev) => prev.filter((p) => p._id !== id));
-      return true; // Table sẽ hiển thị "Đã xoá!"
+      return true;
     } catch (err) {
       Swal.fire("Lỗi", "Xoá thất bại. Vui lòng thử lại.", "error");
       return false;
@@ -155,13 +160,29 @@ const KioskPlanPage = () => {
   };
 
   const handleFileUpload = async (file) => {
+    const validTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      Swal.fire("Lỗi", "Chỉ chấp nhận file Excel (.xlsx hoặc .xls).", "error");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
+
     try {
       setImporting(true);
-      await importExcel(formData);
-      await fetchPlans();
-      Swal.fire("Thành công", "Import Excel thành công.", "success");
+      const res = await importExcel(formData);
+
+      if (res?.data?.invalidFormat) {
+        Swal.fire("Lỗi", "File Excel không đúng định dạng hoặc thiếu trường dữ liệu.", "error");
+      } else {
+        await fetchPlans();
+        Swal.fire("Thành công", "Import Excel thành công.", "success");
+      }
     } catch (err) {
       Swal.fire("Lỗi", "Import Excel thất bại.", "error");
     } finally {
@@ -171,14 +192,20 @@ const KioskPlanPage = () => {
 
   const handleCreateNew = async (form) => {
     try {
-      await createPlan({
-        hospitalName: form.hospitalName,
-        quantity: form.quantity,
-        cccdReaderType: form.readerType,
-        deviceType: form.deviceType,
-        priorityLevel: form.priority,
-        personInCharge: form.responsiblePerson,
-      });
+      // ✅ Lấy STT cao nhất hiện tại
+      const maxStt =
+        plans
+          .map((p) => parseInt(p.stt))
+          .filter((n) => !isNaN(n))
+          .sort((a, b) => b - a)[0] || 0;
+
+      const newPlan = {
+        ...form,
+        stt: String(maxStt + 1), // ✅ gán STT mới
+        createdAt: new Date().toISOString(),
+      };
+
+      await createPlan(newPlan);
       setShowCreateForm(false);
       await fetchPlans();
       Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
@@ -186,6 +213,8 @@ const KioskPlanPage = () => {
       Swal.fire("Lỗi", "Tạo kế hoạch thất bại. Vui lòng thử lại.", "error");
     }
   };
+
+
 
   const handleView = (plan) => {
     navigate(`/kiosk-plans/${plan._id}`, { state: { plan } });
@@ -202,22 +231,26 @@ const KioskPlanPage = () => {
         {loading && <span className="text-sm text-gray-500">Đang tải...</span>}
       </div>
 
-      {/* Import Excel */}
-      <div className="mb-4">
-        <ImportExcelButton onFileSelect={handleFileUpload} disabled={importing} />
-        {importing && (
-          <span className="ml-2 text-sm text-gray-500">Đang import...</span>
-        )}
+      <div className="flex flex-wrap justify-end items-center gap-2 mb-4">
+        <ImportExcelButton
+          onFileSelect={handleFileUpload}
+          disabled={importing}
+          className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded"
+        />
+        <button
+          onClick={() => navigate("/kiosk-plans/create")}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+          disabled={loading || importing}
+        >
+          ➕ Tạo mới kế hoạch
+        </button>
       </div>
 
-      {/* Tạo mới */}
-      <button
-        onClick={() => setShowCreateForm(true)}
-        className="mb-4 bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-60"
-        disabled={loading || importing}
-      >
-        ➕ Tạo mới kế hoạch
-      </button>
+      {importing && (
+        <div className="mb-4 text-sm text-gray-500 text-right">
+          Đang import...
+        </div>
+      )}
 
       {showCreateForm && (
         <CreatePlanForm
@@ -226,11 +259,10 @@ const KioskPlanPage = () => {
         />
       )}
 
-      {/* Bảng kế hoạch */}
       <KioskPlanTable
         data={plans}
         onDelete={handleDelete}
-        onEdit={(plan) => console.log("Edit:", plan)} // Sau này có thể mở form edit
+        onEdit={(plan) => console.log("Edit:", plan)}
         onView={handleView}
       />
     </div>

@@ -1,120 +1,154 @@
-// src/Pages/KioskPlanDetail.js
 import React, { useEffect, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
-import { getPlanById } from "../services/kioskPlanApi";
+import Swal from "sweetalert2";
+import { getPlanById, updatePlanById } from "../services/kioskPlanApi";
 
-// Format ngày về dd/MM/yyyy (vi-VN) – KHỚP LOGIC VỚI TABLE
 const formatDate = (value) => {
-  if (value === null || value === undefined) return "-";
+  if (!value) return "-";
+
+  // Nếu là số, ta giả định là Excel serial number
+  if (!isNaN(value) && Number(value) > 40000 && Number(value) < 60000) {
+    // Excel bắt đầu từ 1900-01-01 (serial 1)
+    const excelEpoch = new Date(1899, 11, 30); // = 1900-01-00
+    const result = new Date(excelEpoch.getTime() + (value * 86400000)); // 86400000 = 1 day
+    return result.toLocaleDateString("vi-VN");
+  }
+
   const v = typeof value === "string" ? value.trim() : value;
-  if (v === "") return "-";
-
-  const isNumericLike =
-    typeof v === "number" || (typeof v === "string" && !isNaN(v));
-  if (isNumericLike) {
-    const num = Number(v);
-    if (!Number.isNaN(num)) {
-      const d = new Date(1900, 0, num - 1);
-      if (!Number.isNaN(d.getTime())) return d.toLocaleDateString("vi-VN");
-    }
-  }
-
-  const d2 = new Date(v);
-  if (!Number.isNaN(d2.getTime())) return d2.toLocaleDateString("vi-VN");
-
-  if (typeof v === "string") {
-    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (m) {
-      const [, dd, mm, yyyy] = m;
-      const d3 = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-      if (!Number.isNaN(d3.getTime())) return d3.toLocaleDateString("vi-VN");
-    }
-  }
-
-  return typeof v === "string" ? v : "-";
+  const d = new Date(v);
+  return !isNaN(d) ? d.toLocaleDateString("vi-VN") : v;
 };
+
 
 const KioskPlanDetail = () => {
   const { id } = useParams();
   const location = useLocation();
   const [plan, setPlan] = useState(location.state?.plan || null);
   const [loading, setLoading] = useState(!location.state?.plan);
+  const [editMode, setEditMode] = useState(false);
+  const [editValues, setEditValues] = useState({});
 
   useEffect(() => {
-    const fetchOne = async () => {
-      try {
-        setLoading(true);
-        const res = await getPlanById(id);
-        setPlan(res.data);
-      } finally {
-        setLoading(false);
-      }
+    const fetchData = async () => {
+      setLoading(true);
+      const res = await getPlanById(id);
+      setPlan(res.data);
+      setEditValues(res.data);
+      setLoading(false);
     };
-    if (!plan) fetchOne();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!location.state?.plan) fetchData();
   }, [id]);
 
+  const handleToggleEdit = () => {
+    setEditMode((prev) => !prev);
+    setEditValues(plan);
+  };
+
+  const handleChange = (key, value) => {
+    setEditValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      const res = await updatePlanById(plan._id, editValues);
+      setPlan(res.data);
+      setEditMode(false);
+      Swal.fire("Thành công", "Đã lưu thay đổi", "success");
+    } catch (err) {
+      Swal.fire("Lỗi", "Không thể cập nhật dữ liệu", "error");
+    }
+  };
+
   if (loading) return <div className="p-4">Đang tải chi tiết...</div>;
-  if (!plan) return <div className="p-4">Không tìm thấy dữ liệu.</div>;
+  if (!plan) return <div className="p-4">Không tìm thấy kế hoạch.</div>;
 
   const fields = [
-    { label: "Tên bệnh viện", value: plan.hospitalName },
-
-    // Các trường text có thể có xuống dòng từ Excel
-    { label: "Ghi chú làm việc gần nhất", value: plan.lastNote, multiline: true },
-    { label: "Yêu cầu thêm của bệnh viện", value: plan.additionalRequest, multiline: true },
-
-    // 3 trường ngày – dùng formatDate
-    { label: "Ngày phát sinh yêu cầu", value: formatDate(plan.requestDate) },
-    { label: "Deadline", value: formatDate(plan.deadline) },
-    { label: "Ngày chuyển nghiệm thu", value: formatDate(plan.deliveryDate) },
-
-    { label: "Số lượng", value: plan.quantity },
-    { label: "Loại đầu đọc CCCD", value: plan.cccdReaderType },
-    { label: "Loại thiết bị", value: plan.deviceType },
-    { label: "Mức độ ưu tiên", value: plan.priorityLevel },
-    { label: "Người phụ trách", value: plan.personInCharge },
-    { label: "Trạng thái làm việc với viện - dev", value: plan.devStatus },
-    { label: "Trạng thái xử lý yêu cầu", value: plan.requestStatus },
-    { label: "Người xử lý", value: plan.handler },
-    { label: "His", value: plan.his },
-
-    // URL có thể dài -> thêm break-words
-    { label: "Url port", value: plan.urlPort, multiline: true },
-
-    { label: "Tài khoản check BHXH", value: plan.bhxhAccount },
-    { label: "ID", value: plan._id },
+    { key: "hospitalName", label: "Tên bệnh viện" },
+    { key: "lastNote", label: "Ghi chú làm việc gần nhất", multiline: true },
+    { key: "additionalRequest", label: "Yêu cầu thêm của bệnh viện", multiline: true },
+    { key: "requestDate", label: "Ngày phát sinh yêu cầu", isDate: true },
+    { key: "deadline", label: "Deadline", isDate: true },
+    { key: "deliveryDate", label: "Ngày chuyển nghiệm thu", isDate: true },
+    { key: "quantity", label: "Số lượng" },
+    { key: "cccdReaderType", label: "Loại đầu đọc CCCD" },
+    { key: "deviceType", label: "Loại thiết bị" },
+    { key: "priorityLevel", label: "Mức độ ưu tiên" },
+    { key: "personInCharge", label: "Người phụ trách" },
+    { key: "devStatus", label: "Trạng thái làm việc với viện - dev" },
+    { key: "requestStatus", label: "Trạng thái xử lý yêu cầu" },
+    { key: "handler", label: "Người xử lý" },
+    { key: "his", label: "His" },
+    { key: "urlPort", label: "Url port", multiline: true },
+    { key: "bhxhAccount", label: "Tài khoản check BHXH" },
+    { key: "_id", label: "ID" },
   ];
 
   return (
     <div className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="flex justify-between items-center mb-2">
         <h1 className="text-lg font-semibold">Chi tiết kế hoạch kiosk</h1>
+        <button
+          onClick={handleToggleEdit}
+          className="px-3 py-1 border rounded hover:bg-gray-50 text-sm"
+        >
+          {editMode ? "Huỷ chỉnh sửa" : "Sửa kế hoạch"}
+        </button>
+      </div>
+
+      <div className="mb-4">
         <Link
           to="/kiosk-plans"
           className="px-3 py-1 border rounded hover:bg-gray-50 text-sm"
         >
-          Quay lại danh sách
+          ← Quay lại danh sách
         </Link>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         {fields.map((f) => (
-          <div key={f.label} className="border rounded p-3">
-            <div className="text-xs text-gray-500">{f.label}</div>
-            <div
-              className={
-                // với trường có thể có xuống dòng/URL dài thì dùng pre-wrap + break-words
-                "text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")
-              }
-            >
-              {f.value !== undefined && f.value !== null && f.value !== ""
-                ? String(f.value)
-                : "-"}
-            </div>
+          <div key={f.key} className="border rounded p-3">
+            <div className="text-xs text-gray-500 mb-1">{f.label}</div>
+            {editMode ? (
+              f.isDate ? (
+                <input
+                  type="date"
+                  className="w-full text-sm border rounded p-1"
+                  value={editValues[f.key] || ""}
+                  onChange={(e) => handleChange(f.key, e.target.value)}
+                />
+              ) : (
+                <textarea
+                  rows={f.multiline ? 3 : 1}
+                  className="w-full text-sm border rounded p-1"
+                  value={editValues[f.key] || ""}
+                  onChange={(e) => handleChange(f.key, e.target.value)}
+                />
+              )
+            ) : (
+              <div
+                className={
+                  "text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")
+                }
+              >
+                {f.isDate
+                  ? formatDate(plan[f.key])
+                  : plan[f.key] || "-"}
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      {editMode && (
+        <div className="mt-4 text-right">
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          >
+            Lưu thay đổi
+          </button>
+        </div>
+      )}
     </div>
   );
 };
