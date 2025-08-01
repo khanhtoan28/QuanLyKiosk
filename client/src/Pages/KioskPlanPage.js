@@ -184,7 +184,7 @@ const KioskPlanPage = () => {
         Swal.fire("Thành công", "Import Excel thành công.", "success");
       }
     } catch (err) {
-      Swal.fire("Lỗi", "Import Excel thất bại.", "error");
+      Swal.fire("Lỗi", "File Excel sai định dạng hoặc thiếu trường dữ liệu.", "error");
     } finally {
       setImporting(false);
     }

@@ -3,25 +3,24 @@ import React, { useState, useMemo } from "react";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import { Eye } from "lucide-react";
+import EditDropdownModal from "./EditDropdownModal"; // ✅ thêm modal
 
 const formatDate = (value) => {
   if (!value) return "-";
-
-  // Nếu đúng định dạng yyyy-mm-dd thì xử lý thủ công
   const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) {
     const [, yyyy, mm, dd] = m;
     return `${dd}/${mm}/${yyyy}`;
   }
-
-  // Nếu là ISO string hoặc object date thì cứ trả nguyên
   return value;
 };
-
 
 const KioskPlanTable = ({ data, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [dropdownOptions, setDropdownOptions] = useState({});
+  const user = { role: "admin" }; // ✅ giả lập phân quyền
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -29,10 +28,9 @@ const KioskPlanTable = ({ data, onDelete }) => {
     return [...data].sort((a, b) => {
       const aDate = new Date(a.createdAt || 0);
       const bDate = new Date(b.createdAt || 0);
-      return bDate - aDate; // sort theo createdAt mới -> cũ
+      return bDate - aDate;
     });
   }, [data]);
-
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
@@ -89,8 +87,7 @@ const KioskPlanTable = ({ data, onDelete }) => {
         pages.push(
           <button
             key={i}
-            className={`w-8 h-8 border rounded ${i === currentPage ? "bg-black text-white" : "bg-white"
-              }`}
+            className={`w-8 h-8 border rounded ${i === currentPage ? "bg-black text-white" : "bg-white"}`}
             onClick={() => handlePageChange(i)}
           >
             {i}
@@ -128,6 +125,17 @@ const KioskPlanTable = ({ data, onDelete }) => {
 
   return (
     <div className="overflow-x-auto">
+      {user.role === "admin" && (
+        <div className="mb-4 text-right">
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-3 py-1 bg-yellow-400 text-black rounded text-sm hover:bg-yellow-500"
+          >
+            ⚙️ Sửa dropdown kế hoạch
+          </button>
+        </div>
+      )}
+
       {selectedIds.length > 0 && (
         <div className="mb-2 text-right">
           <label className="inline-flex items-center mr-4">
@@ -152,13 +160,13 @@ const KioskPlanTable = ({ data, onDelete }) => {
         <thead className="bg-gray-100 text-xs font-semibold">
           <tr>
             <th className="p-2 border w-[50px] text-center">STT</th>
-            <th className="p-2 border w-[250px]">Tên bệnh viện</th>
+            <th className="p-2 border w-[250px] text-center">Tên bệnh viện</th>
             <th className="p-2 border w-[100px] text-center">Deadline</th>
             <th className="p-2 border w-[100px] text-center">Ưu tiên</th>
-            <th className="p-2 border w-[200px]">Trạng thái dev</th>
-            <th className="p-2 border w-[200px]">Trạng thái yêu cầu</th>
+            <th className="p-2 border w-[200px] text-center ">Trạng thái Dev</th>
+            <th className="p-2 border w-[200px] text-center">Trạng thái yêu cầu</th>
             <th className="p-2 border w-[150px] text-center">Ngày nghiệm thu</th>
-            <th className="p-2 border w-[100px] text-center">Hành động</th>
+            <th className="p-2 border w-[100px] text-center">Chi tiết</th>
             <th className="p-2 border w-[40px] text-center">✔</th>
           </tr>
         </thead>
@@ -176,29 +184,40 @@ const KioskPlanTable = ({ data, onDelete }) => {
                 className="border-t hover:bg-gray-50 h-[48px]"
               >
                 <td className="p-2 border text-center">{startIdx + idx + 1}</td>
-                <td className="p-2 border truncate">{plan.hospitalName}</td>
+                <td className="p-2 border text-center">{plan.hospitalName}</td>
                 <td className="p-2 border text-center">
                   {formatDate(plan.deadline)}
                 </td>
-                <td className="p-2 border text-center">
-                  {plan.priorityLevel || "-"}
+                <td className="p-2 border text-center leading-tight whitespace-pre-line">
+                  {plan.priorityLevel ? (
+                    <>
+                      <div>{plan.priorityLevel.split(" (")[0]}</div>
+                      {plan.priorityLevel.includes("(") && (
+                        <div className="text-xs text-gray-500">
+                          {"(" + plan.priorityLevel.split(" (")[1]}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </td>
-                <td className="p-2 border truncate">{plan.devStatus || "-"}</td>
-                <td className="p-2 border truncate">
-                  {plan.requestStatus || "-"}
-                </td>
+                <td className="p-2 border text-center">{plan.devStatus || "-"}</td>
+                <td className="p-2 border text-center">{plan.requestStatus || "-"}</td>
                 <td className="p-2 border text-center">
                   {formatDate(plan.deliveryDate)}
                 </td>
-                <td className="p-2 border text-center">
-                  <button
-                    className="flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
-                    onClick={() =>
-                      navigate(`/kiosk-plans/${plan._id}`, { state: { plan } })
-                    }
-                  >
-                    <Eye size={14} /> Xem
-                  </button>
+                <td className="p-2 border">
+                  <div className="flex justify-center items-center">
+                    <button
+                      className="flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+                      onClick={() =>
+                        navigate(`/kiosk-plans/${plan._id}`, { state: { plan } })
+                      }
+                    >
+                      <Eye size={14} /> Xem
+                    </button>
+                  </div>
                 </td>
                 <td className="p-2 border text-center">
                   <input
@@ -214,8 +233,19 @@ const KioskPlanTable = ({ data, onDelete }) => {
       </table>
 
       {renderPagination()}
+
+      {showModal && (
+        <EditDropdownModal
+          onClose={() => setShowModal(false)}
+          onSave={(options) => {
+            setDropdownOptions(options);
+            console.log("🔄 Dropdown đã cập nhật:", options);
+          }}
+          initialOptions={dropdownOptions}
+        />
+      )}
     </div>
   );
-}
+};
 
 export default KioskPlanTable;

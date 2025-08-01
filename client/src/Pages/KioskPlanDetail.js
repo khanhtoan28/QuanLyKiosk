@@ -5,18 +5,13 @@ import { getPlanById, updatePlanById } from "../services/kioskPlanApi";
 
 const formatDate = (value) => {
   if (!value) return "-";
-
-  // Nếu là định dạng yyyy-mm-dd thì parse thủ công
   const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) {
     const [, yyyy, mm, dd] = m;
     return `${dd}/${mm}/${yyyy}`;
   }
-
-  return value; // nếu không khớp thì giữ nguyên (vd: "chưa có", "n/a", ...)
+  return value;
 };
-
-
 
 const KioskPlanDetail = () => {
   const { id } = useParams();
@@ -25,6 +20,7 @@ const KioskPlanDetail = () => {
   const [loading, setLoading] = useState(!location.state?.plan);
   const [editMode, setEditMode] = useState(false);
   const [editValues, setEditValues] = useState({});
+  const [dropdownOptions, setDropdownOptions] = useState({}); // ✅ load động
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +31,21 @@ const KioskPlanDetail = () => {
       setLoading(false);
     };
     if (!location.state?.plan) fetchData();
-  },[id, location.state?.plan]);
+  }, [id, location.state?.plan]);
+
+  // ✅ Load dropdown từ backend
+  useEffect(() => {
+    const fetchDropdowns = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/dropdown-options");
+        const data = await res.json();
+        setDropdownOptions(data);
+      } catch (err) {
+        console.error("Lỗi khi tải dropdown:", err);
+      }
+    };
+    fetchDropdowns();
+  }, []);
 
   const handleToggleEdit = () => {
     setEditMode((prev) => !prev);
@@ -72,10 +82,11 @@ const KioskPlanDetail = () => {
     { key: "deviceType", label: "Loại thiết bị" },
     { key: "priorityLevel", label: "Mức độ ưu tiên" },
     { key: "personInCharge", label: "Người phụ trách" },
-    { key: "devStatus", label: "Trạng thái làm việc với viện - dev" },
+    { key: "devStatus", label: "Trạng thái làm việc với dev" },
+    { key: "hopStatus", label: "Trạng thái làm việc với bệnh viện" },
     { key: "requestStatus", label: "Trạng thái xử lý yêu cầu" },
-    { key: "handler", label: "Người xử lý" },
     { key: "his", label: "His" },
+    { key: "handler", label: "Người xử lý" },
     { key: "urlPort", label: "Url port", multiline: true },
     { key: "bhxhAccount", label: "Tài khoản check BHXH" },
   ];
@@ -95,7 +106,7 @@ const KioskPlanDetail = () => {
       <div className="mb-4">
         <Link
           to="/kiosk-plans"
-          className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700 text-white "
+          className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700 text-white"
         >
           ← Quay lại danh sách
         </Link>
@@ -113,6 +124,19 @@ const KioskPlanDetail = () => {
                   value={editValues[f.key] || ""}
                   onChange={(e) => handleChange(f.key, e.target.value)}
                 />
+              ) : dropdownOptions[f.key] ? (
+                <select
+                  className="w-full text-sm border rounded p-1"
+                  value={editValues[f.key] || ""}
+                  onChange={(e) => handleChange(f.key, e.target.value)}
+                >
+                  <option value="">-- Chọn --</option>
+                  {dropdownOptions[f.key].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <textarea
                   rows={f.multiline ? 3 : 1}
@@ -127,9 +151,7 @@ const KioskPlanDetail = () => {
                   "text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")
                 }
               >
-                {f.isDate
-                  ? formatDate(plan[f.key])
-                  : plan[f.key] || "-"}
+                {f.isDate ? formatDate(plan[f.key]) : plan[f.key] || "-"}
               </div>
             )}
           </div>

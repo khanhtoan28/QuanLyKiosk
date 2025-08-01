@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { createPlan } from "../services/kioskPlanApi";
@@ -6,8 +6,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from "date-fns/locale";
 import { format, parseISO } from "date-fns";
-import "react-datepicker/dist/react-datepicker.css";
-
+import axios from "axios";
 
 const fieldLabels = {
     hospitalName: "Tên bệnh viện",
@@ -22,6 +21,7 @@ const fieldLabels = {
     priorityLevel: "Mức độ ưu tiên",
     personInCharge: "Người phụ trách",
     devStatus: "Trạng thái dev",
+    hopStatus: "Trạng thái làm việc với bệnh viện",
     requestStatus: "Trạng thái yêu cầu",
     handler: "Người xử lý",
     his: "HIS",
@@ -36,6 +36,13 @@ const KioskPlanCreate = () => {
     const [form, setForm] = useState(
         Object.fromEntries(Object.keys(fieldLabels).map((key) => [key, ""]))
     );
+    const [selectOptions, setSelectOptions] = useState({});
+
+    useEffect(() => {
+        axios.get("/api/dropdown-options").then((res) => {
+            setSelectOptions(res.data);
+        });
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -49,6 +56,12 @@ const KioskPlanCreate = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!form.hospitalName.trim()) {
+            Swal.fire("Thiếu thông tin", "Vui lòng nhập Tên bệnh viện.", "warning");
+            return;
+        }
+
         try {
             await createPlan(form);
             Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
@@ -67,6 +80,7 @@ const KioskPlanCreate = () => {
                         <label className="text-sm text-gray-600 mb-1">
                             {fieldLabels[key] || key}
                         </label>
+
                         {dateFields.includes(key) ? (
                             <DatePicker
                                 selected={value ? parseISO(value) : null}
@@ -76,6 +90,20 @@ const KioskPlanCreate = () => {
                                 placeholderText="Chọn ngày"
                                 className="border p-2 rounded text-sm"
                             />
+                        ) : selectOptions[key] ? (
+                            <select
+                                name={key}
+                                value={value}
+                                onChange={handleChange}
+                                className="border p-2 rounded text-sm"
+                            >
+                                <option value="">-- Chọn --</option>
+                                {selectOptions[key].map((option) => (
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </select>
                         ) : (
                             <input
                                 type={key === "quantity" ? "number" : "text"}
@@ -85,7 +113,6 @@ const KioskPlanCreate = () => {
                                 className="border p-2 rounded text-sm"
                             />
                         )}
-
                     </div>
                 ))}
 

@@ -15,6 +15,7 @@ const kioskPlanSchema = new mongoose.Schema({
   priorityLevel: String,
   personInCharge: String,
   devStatus: String,
+  hopStatus: String,
   requestStatus: String,
   handler: String,
   his: String,
