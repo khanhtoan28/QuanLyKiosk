@@ -6,18 +6,16 @@ import { getPlanById, updatePlanById } from "../services/kioskPlanApi";
 const formatDate = (value) => {
   if (!value) return "-";
 
-  // Nếu là số, ta giả định là Excel serial number
-  if (!isNaN(value) && Number(value) > 40000 && Number(value) < 60000) {
-    // Excel bắt đầu từ 1900-01-01 (serial 1)
-    const excelEpoch = new Date(1899, 11, 30); // = 1900-01-00
-    const result = new Date(excelEpoch.getTime() + (value * 86400000)); // 86400000 = 1 day
-    return result.toLocaleDateString("vi-VN");
+  // Nếu là định dạng yyyy-mm-dd thì parse thủ công
+  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const [, yyyy, mm, dd] = m;
+    return `${dd}/${mm}/${yyyy}`;
   }
 
-  const v = typeof value === "string" ? value.trim() : value;
-  const d = new Date(v);
-  return !isNaN(d) ? d.toLocaleDateString("vi-VN") : v;
+  return value; // nếu không khớp thì giữ nguyên (vd: "chưa có", "n/a", ...)
 };
+
 
 
 const KioskPlanDetail = () => {
@@ -37,7 +35,7 @@ const KioskPlanDetail = () => {
       setLoading(false);
     };
     if (!location.state?.plan) fetchData();
-  }, [id]);
+  },[id, location.state?.plan]);
 
   const handleToggleEdit = () => {
     setEditMode((prev) => !prev);
@@ -80,7 +78,6 @@ const KioskPlanDetail = () => {
     { key: "his", label: "His" },
     { key: "urlPort", label: "Url port", multiline: true },
     { key: "bhxhAccount", label: "Tài khoản check BHXH" },
-    { key: "_id", label: "ID" },
   ];
 
   return (
@@ -89,7 +86,7 @@ const KioskPlanDetail = () => {
         <h1 className="text-lg font-semibold">Chi tiết kế hoạch kiosk</h1>
         <button
           onClick={handleToggleEdit}
-          className="px-3 py-1 border rounded hover:bg-gray-50 text-sm"
+          className="px-3 py-1 rounded text-sm bg-yellow-400 hover:bg-yellow-500 text-black"
         >
           {editMode ? "Huỷ chỉnh sửa" : "Sửa kế hoạch"}
         </button>
@@ -98,7 +95,7 @@ const KioskPlanDetail = () => {
       <div className="mb-4">
         <Link
           to="/kiosk-plans"
-          className="px-3 py-1 border rounded hover:bg-gray-50 text-sm"
+          className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700 text-white "
         >
           ← Quay lại danh sách
         </Link>

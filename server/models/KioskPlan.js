@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 
 const kioskPlanSchema = new mongoose.Schema({
   stt: String, // để đồng bộ luôn
-  hospitalName: String,
-  lastNote: String,
+  hospitalName: {type: String, required: true},
+  lastNote: String, 
   additionalRequest: String,
   requestDate: String,      
   deadline: String,         
@@ -20,7 +20,7 @@ const kioskPlanSchema = new mongoose.Schema({
   his: String,
   urlPort: String,
   bhxhAccount: String,
-}, { timestamps: true });
+}, { timestamps: true, strict: true });
 
 const KioskPlan = mongoose.model("KioskPlan", kioskPlanSchema);
 export default KioskPlan;

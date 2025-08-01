@@ -3,25 +3,43 @@ import parseExcelFile from "../utils/excelParser.js";
 
 const toISODate = (value) => {
   if (!value && value !== 0) return "";
+
+  // Nếu là số (Excel serial number)
   if (typeof value === "number" && !isNaN(value)) {
-    const base = Date.UTC(1899, 11, 30);
-    const ms = base + value * 24 * 60 * 60 * 1000;
-    const d = new Date(ms);
-    return d.toISOString().slice(0, 10);
+    const utcMillis = Date.UTC(1899, 11, 30) + (value + 1) * 86400000;
+    return new Date(utcMillis).toISOString().slice(0, 10); // yyyy-mm-dd
+
   }
+
+  // Nếu là chuỗi "dd/mm/yyyy" hoặc ISO
   if (typeof value === "string") {
-    const v = value.trim();
-    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    const trimmed = value.trim();
+
+    // Nếu đúng định dạng ISO
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    // Nếu là định dạng dd/mm/yyyy hoặc dd-mm-yyyy
+    const m = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (m) {
       const [_, dd, mm, yyyy] = m;
-      const d = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
-    const d2 = new Date(v);
-    if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10);
+
+    // Thử parse các trường hợp khác
+    const d = new Date(trimmed);
+    if (!isNaN(d)) {
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return trimmed;
   }
+
   return "";
 };
+
 
 const normalizePlanDates = (payload = {}) => {
   const out = { ...payload };
@@ -63,7 +81,6 @@ export const createPlan = async (req, res) => {
   }
 };
 
-
 export const updatePlan = async (req, res) => {
   try {
     const payload = normalizePlanDates(req.body);
@@ -89,23 +106,13 @@ export const deletePlan = async (req, res) => {
 
 export const importExcel = async (req, res) => {
   try {
-    let rows;
+    const rawRows = await parseExcelFile(req.file.buffer);
 
-    // ✳️ Bắt lỗi thiếu cột từ parseExcelFile
-    try {
-      const rows = await parseExcelFile(req.file.path); // ← đã được validate và map đầy đủ
-      const created = await KioskPlan.insertMany(rows);
-      res.status(201).json(created);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-
-    const mapped = rows.map((r, index) => ({
+    const mapped = rawRows.map((r, index) => ({
       stt: r["STT"] ?? r.stt ?? "",
       hospitalName: r["Tên bệnh viện"] ?? r.hospitalName ?? "",
       lastNote: r["Ghi chú làm việc gần nhất"] ?? r.lastNote ?? "",
-      additionalRequest:
-        r["Yêu cầu thêm của bệnh viện"] ?? r.additionalRequest ?? "",
+      additionalRequest: r["Yêu cầu thêm của bệnh viện"] ?? r.additionalRequest ?? "",
       requestDate: toISODate(r["Ngày phát sinh yêu cầu"] ?? r.requestDate),
       deadline: toISODate(r["Deadline"] ?? r.deadline),
       deliveryDate: toISODate(r["Ngày chuyển nghiệm thu"] ?? r.deliveryDate),
@@ -114,8 +121,7 @@ export const importExcel = async (req, res) => {
       deviceType: r["Loại thiết bị"] ?? r.deviceType ?? "",
       priorityLevel: r["Mức độ ưu tiên"] ?? r.priorityLevel ?? "",
       personInCharge: r["Người phụ trách"] ?? r.personInCharge ?? "",
-      devStatus:
-        r["Trạng thái làm việc với viện - dev"] ?? r.devStatus ?? "",
+      devStatus: r["Trạng thái làm việc với viện - dev"] ?? r.devStatus ?? "",
       requestStatus: r["Trạng thái xử lý yêu cầu"] ?? r.requestStatus ?? "",
       handler: r["Người xử lý"] ?? r.handler ?? "",
       his: r["His"] ?? r.his ?? "",
@@ -124,9 +130,19 @@ export const importExcel = async (req, res) => {
       excelOrder: index,
     }));
 
-    const created = await KioskPlan.insertMany(mapped);
-    res.status(201).json(created);
+    const valid = mapped.filter(r => r.hospitalName && r.hospitalName.trim() !== "");
+    const skipped = mapped.length - valid.length;
+
+    if (valid.length === 0) {
+      return res.status(400).json({ error: "❌ Tất cả các dòng đều thiếu 'Tên bệnh viện'." });
+    }
+
+    const created = await KioskPlan.insertMany(valid);
+    res.status(201).json({
+      message: `✅ Đã thêm ${created.length} dòng. ${skipped > 0 ? `❗️Bỏ qua ${skipped} dòng thiếu 'Tên bệnh viện'.` : ""}`,
+    });
   } catch (err) {
+    console.error("❌ Import error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
