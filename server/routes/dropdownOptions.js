@@ -4,6 +4,15 @@ import DropdownOption from "../models/DropdownOption.js"; // ✅ import model
 
 const router = express.Router();
 
+const displayNames = {
+  cccdReaderType: "Loại đầu đọc CCCD",
+  deviceType: "Loại thiết bị",
+  priorityLevel: "Mức độ ưu tiên",
+  hopStatus: "Trạng thái làm việc với bệnh viện",
+  devStatus: "Trạng thái làm việc với dev",
+  requestStatus: "Trạng thái xử lý yêu cầu",
+};
+
 // GET dropdown options
 router.get("/", async (req, res) => {
   let existing = await DropdownOption.findOne();
@@ -20,7 +29,6 @@ router.get("/", async (req, res) => {
         hopStatus: ["Chưa tích hợp", "Đã tích hợp", "Nghiệm thu", "Hủy yêu cầu"],
         devStatus: ["Chờ dev build update", "Test thông api & chuyển dev"],
         requestStatus: ["Chưa xử lý", "Đã xử lý", "Đã xử lý xong", "Hủy yêu cầu"],
-        personInCharge: ["Minh", "Kiệt", "Giang", "Thành", "Toàn", "Hải", "Dương"],
       },
     });
   }

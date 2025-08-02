@@ -2,18 +2,21 @@
 import mongoose from "mongoose";
 
 const kioskPlanSchema = new mongoose.Schema({
-  stt: String, // để đồng bộ luôn
-  hospitalName: {type: String, required: true},
-  lastNote: String, 
+  stt: String,
+  hospitalName: { type: String, required: true },
+  lastNote: String,
   additionalRequest: String,
-  requestDate: String,      
-  deadline: String,         
-  deliveryDate: String,    
+  requestDate: String,
+  deadline: String,
+  deliveryDate: String,
   quantity: String,
   cccdReaderType: String,
   deviceType: String,
   priorityLevel: String,
-  personInCharge: String,
+  personInCharge: {
+    type: [String],
+    default: [],
+  },
   devStatus: String,
   hopStatus: String,
   requestStatus: String,

@@ -33,13 +33,15 @@ const dateFields = ["requestDate", "deadline", "deliveryDate"];
 
 const KioskPlanCreate = () => {
     const navigate = useNavigate();
+    const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
+    const [validUsers, setValidUsers] = useState([]);
     const [form, setForm] = useState(
         Object.fromEntries(Object.keys(fieldLabels).map((key) => [key, ""]))
     );
     const [selectOptions, setSelectOptions] = useState({});
 
     useEffect(() => {
-        axios.get("/api/dropdown-options").then((res) => {
+        axios.get("http://localhost:5000/api/dropdown-options").then((res) => {
             setSelectOptions(res.data);
         });
     }, []);
@@ -62,11 +64,55 @@ const KioskPlanCreate = () => {
             return;
         }
 
+        const checkedUsers = [];
+        const invalidEmails = [];
+
+        for (const email of personInChargeEmails) {
+            if (!email || !email.includes("@")) continue;
+
+            try {
+                const res = await axios.get(`http://localhost:5000/api/users?email=${email}`);
+                const user = res.data?.data;
+
+                if (!user) {
+                    invalidEmails.push(email);
+                    continue;
+                }
+
+                checkedUsers.push(user);
+            } catch (err) {
+                console.error("❌ Lỗi khi kiểm tra user:", err);
+                invalidEmails.push(email);
+            }
+        }
+
+        if (invalidEmails.length > 0) {
+            Swal.fire({
+                icon: "warning",
+                title: "Email không hợp lệ",
+                html: `Các email sau không tồn tại trong hệ thống:<br><b>${invalidEmails.join("<br>")}</b>`,
+            });
+            return;
+        }
+
         try {
-            await createPlan(form);
+            for (const user of checkedUsers) {
+                await axios.post("http://localhost:5000/api/notifications/send", {
+                    to: user.email,
+                    subject: "Bạn được giao công việc mới",
+                    message: `Chào ${user.name || user.email}, bạn đã được phân công phụ trách một kế hoạch kiosk mới.`,
+                });
+            }
+
+            await createPlan({
+                ...form,
+                personInCharge: checkedUsers.map((u) => u.email),
+            });
+
             Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
             navigate("/kiosk-plans");
         } catch (err) {
+            console.error("Lỗi khi tạo kế hoạch hoặc gửi mail:", err);
             Swal.fire("Lỗi", "Tạo kế hoạch thất bại.", "error");
         }
     };
@@ -81,7 +127,52 @@ const KioskPlanCreate = () => {
                             {fieldLabels[key] || key}
                         </label>
 
-                        {dateFields.includes(key) ? (
+                        {key === "personInCharge" ? (
+                            <div className="flex flex-col gap-2">
+                                {personInChargeEmails.map((email, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => {
+                                                const updated = [...personInChargeEmails];
+                                                updated[idx] = e.target.value;
+                                                setPersonInChargeEmails(updated);
+                                            }}
+                                            placeholder="Nhập email người phụ trách"
+                                            className="border p-2 rounded text-sm flex-1"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            className="text-red-500"
+                                            onClick={() => {
+                                                const updated = [...personInChargeEmails];
+                                                updated.splice(idx, 1);
+                                                setPersonInChargeEmails(updated);
+                                                setValidUsers((prev) => prev.filter((_, i) => i !== idx));
+                                            }}
+                                        >
+                                            Xoá
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="text-blue-600 text-sm mt-1"
+                                    onClick={() => setPersonInChargeEmails([...personInChargeEmails, ""])}
+                                >
+                                    + Thêm người phụ trách
+                                </button>
+                                {validUsers.length > 0 && (
+                                    <ul className="text-green-700 text-sm mt-2">
+                                        {validUsers.map((user) => (
+                                            <li key={user._id}>✔ {user.name} ({user.email})</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ) : dateFields.includes(key) ? (
                             <DatePicker
                                 selected={value ? parseISO(value) : null}
                                 onChange={(date) => handleDateChange(key, date)}

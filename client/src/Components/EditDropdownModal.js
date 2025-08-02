@@ -5,12 +5,21 @@ const EditDropdownModal = ({ onClose }) => {
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const displayNames = {
+    cccdReaderType: "Loại đầu đọc CCCD",
+    deviceType: "Loại thiết bị",
+    priorityLevel: "Mức độ ưu tiên",
+    hopStatus: "Trạng thái làm việc với bệnh viện",
+    devStatus: "Trạng thái làm việc với dev",
+    requestStatus: "Trạng thái xử lý yêu cầu",
+  };
+
   useEffect(() => {
     axios.get("http://localhost:5000/api/dropdown-options")
-.then((res) => {
-      setOptions(res.data);
-      setLoading(false);
-    });
+      .then((res) => {
+        setOptions(res.data);
+        setLoading(false);
+      });
   }, []);
 
   const handleChange = (key, index, value) => {
@@ -51,34 +60,40 @@ const EditDropdownModal = ({ onClose }) => {
         </div>
 
         <div className="h-[60vh] overflow-y-auto space-y-6 pr-2">
-          {Object.entries(options).map(([key, values]) => (
-            <div key={key}>
-              <div className="font-semibold mb-1">{key}</div>
-              {values.map((val, idx) => (
-                <div key={idx} className="flex gap-2 mb-1">
-                  <input
-                    value={val}
-                    onChange={(e) => handleChange(key, idx, e.target.value)}
-                    className="border px-2 py-1 rounded w-full text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(key, idx)}
-                    className="text-red-500 text-sm"
-                  >
-                    Xoá
-                  </button>
+          {Object.entries(options)
+            .filter(([key]) => key !== "personInCharge")
+            .map(([key, values]) => (
+
+              <div key={key}>
+                <div className="font-semibold mb-1">
+                  {displayNames[key] || key}
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => handleAdd(key)}
-                className="text-blue-600 text-sm mt-1"
-              >
-                + Thêm giá trị
-              </button>
-            </div>
-          ))}
+
+                {values.map((val, idx) => (
+                  <div key={idx} className="flex gap-2 mb-1">
+                    <input
+                      value={val}
+                      onChange={(e) => handleChange(key, idx, e.target.value)}
+                      className="border px-2 py-1 rounded w-full text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(key, idx)}
+                      className="text-red-500 text-sm"
+                    >
+                      Xoá
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => handleAdd(key)}
+                  className="text-blue-600 text-sm mt-1"
+                >
+                  + Thêm giá trị
+                </button>
+              </div>
+            ))}
         </div>
 
         <div className="mt-4 text-right">

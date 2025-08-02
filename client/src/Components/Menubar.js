@@ -25,7 +25,7 @@ const Menubar = () => {
 
   const menuItems = [
     { name: "Dashboard", icon: dashboard, link: "/dashboard" },
-    { name: "Kiosk Plans", icon: showcase, link: "/kiosk-plans" },
+    { name: "Kế hoạch Kiosk", icon: showcase, link: "/kiosk-plans" },
     { name: "User Management", icon: user, link: "/user-management" },
     { name: "Customer Management", icon: customer, link: "/customer-management" },
     { name: "Content Management", icon: content, link: "/content-management" },

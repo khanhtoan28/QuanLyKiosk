@@ -7,7 +7,9 @@ import connectDB from "./mongodb/connection.js";
 // ✅ Import route files
 import authRouter from "./routes/auth.js";
 import kioskPlanRoutes from "./routes/kioskPlanRoutes.js";
-import dropdownRoutes from "./routes/dropdownOptions.js"; // sửa require -> import
+import dropdownRoutes from "./routes/dropdownOptions.js";
+import notificationsRoute from "./routes/notifications.js";
+
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use(express.json());
 app.use("/api", authRouter);
 app.use("/api/kiosk-plans", kioskPlanRoutes);
 app.use("/api/dropdown-options", dropdownRoutes);
+app.use("/api/notifications", notificationsRoute);
 
 // ✅ Root route
 app.get("/", (req, res) => {
