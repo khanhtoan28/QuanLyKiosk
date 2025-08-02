@@ -19,6 +19,7 @@ const User = new mongoose.Schema(
       type: String,
       required: true,
     },
+    avatar: String,
   },
   {
     collection: "user-data",

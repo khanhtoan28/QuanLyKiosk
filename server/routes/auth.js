@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/register.js";
+import upload from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -95,6 +96,35 @@ router.get("/users/:id", async (req, res) => {
   } catch (error) {
     console.error("Lỗi lấy user theo ID:", error);
     res.status(500).json({ message: "Lỗi server" });
+  }
+});
+
+router.put('/users/:id', upload.single('avatar'), async (req, res) => {
+  try {
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+
+    const { name, email } = req.body;
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+
+    if (req.file) {
+      user.avatar = `http://localhost:5000/uploads/${req.file.filename}`;
+    }
+
+    const updatedUser = await user.save();
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Update error:', err);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
 

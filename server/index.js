@@ -3,12 +3,18 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./mongodb/connection.js";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ✅ Import route files
 import authRouter from "./routes/auth.js";
 import kioskPlanRoutes from "./routes/kioskPlanRoutes.js";
 import dropdownRoutes from "./routes/dropdownOptions.js";
 import notificationsRoute from "./routes/notifications.js";
+import verifyEmailRoute from './routes/verifyEmail.js';
 
 
 dotenv.config();
@@ -23,6 +29,8 @@ app.use("/api/kiosk-plans", kioskPlanRoutes);
 app.use("/api/dropdown-options", dropdownRoutes);
 app.use("/api/notifications", notificationsRoute);
 app.use("/api", notificationsRoute); 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api', verifyEmailRoute);
 
 app.get("/", (req, res) => {
   res.send("✅ Backend server is running...");
