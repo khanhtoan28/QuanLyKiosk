@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 
+const Spinner = () => (
+  <svg className="animate-spin h-5 w-5 text-white mr-2" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3.5-3.5L12 0v4a8 8 0 00-8 8z" />
+  </svg>
+);
+
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,6 +20,8 @@ const ProfilePage = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [confirmingCode, setConfirmingCode] = useState(false);
 
   const timerRef = useRef(null);
   const userId = localStorage.getItem('userId');
@@ -106,6 +115,7 @@ const ProfilePage = () => {
   };
 
   const sendVerificationCode = async () => {
+    setSendingCode(true);
     try {
       await axios.post('http://localhost:5000/api/verify-email', { email: emailVerification.email });
       setEmailVerification({ ...emailVerification, step: 2 });
@@ -122,10 +132,13 @@ const ProfilePage = () => {
       }
       closeEmailModal();
       setModalOpen(true);
+    } finally {
+      setSendingCode(false);
     }
   };
 
   const confirmCode = async () => {
+    setConfirmingCode(true);
     try {
       await axios.post('http://localhost:5000/api/confirm-email-code', {
         email: emailVerification.email,
@@ -134,8 +147,14 @@ const ProfilePage = () => {
       closeEmailModal();
       await updateUser();
     } catch (err) {
-      setModalContent({ type: 'error', title: 'Mã xác nhận sai', body: err.response?.data?.message || 'Thử lại.' });
+      setModalContent({
+        type: 'error',
+        title: 'Mã xác nhận sai',
+        body: err.response?.data?.message || 'Thử lại.',
+      });
       setModalOpen(true);
+    } finally {
+      setConfirmingCode(false);
     }
   };
 
@@ -239,25 +258,26 @@ const ProfilePage = () => {
                   Gửi mã xác nhận đến <b>{emailVerification.email}</b>
                 </p>
                 <div className="text-center">
-                  {countdown > 0 ? (
-                    <button
-                      disabled
-                      className="px-4 py-2 rounded bg-gray-400 text-white cursor-not-allowed"
-                    >
-                      Gửi lại ({countdown}s)
-                    </button>
-                  ) : (
-                    <button
-                      onClick={sendVerificationCode}
-                      className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      Gửi mã
-                    </button>
-                  )}
+                  <button
+                    onClick={sendVerificationCode}
+                    disabled={sendingCode || countdown > 0}
+                    className={`inline-flex items-center justify-center px-4 py-2 rounded text-white ${sendingCode || countdown > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                  >
+                    {sendingCode ? (
+                      <>
+                        <Spinner /> Đang gửi...
+                      </>
+                    ) : countdown > 0 ? (
+                      `Gửi lại (${countdown}s)`
+                    ) : (
+                      "Gửi mã"
+                    )}
+                  </button>
                 </div>
+
               </>
             ) : (
-
               <>
                 <p className="text-sm text-gray-600 mb-2">
                   Nhập mã xác nhận đã gửi đến <b>{emailVerification.email}</b>
@@ -285,8 +305,22 @@ const ProfilePage = () => {
                 />
 
                 <div className="flex justify-end space-x-3">
-                  <button onClick={closeEmailModal} className="bg-gray-400 text-white px-4 py-2 rounded">Huỷ</button>
-                  <button onClick={confirmCode} className="bg-green-600 text-white px-4 py-2 rounded">Xác nhận</button>
+                  <button onClick={closeEmailModal} className="bg-gray-400 text-white px-4 py-2 rounded" disabled={confirmingCode}>
+                    Huỷ
+                  </button>
+                  <button
+                    onClick={confirmCode}
+                    className="bg-green-600 text-white px-4 py-2 rounded flex items-center justify-center"
+                    disabled={confirmingCode || emailVerification.code.length < 6}
+                  >
+                    {confirmingCode ? (
+                      <>
+                        <Spinner /> Đang xác nhận...
+                      </>
+                    ) : (
+                      "Xác nhận"
+                    )}
+                  </button>
                 </div>
               </>
             )}

@@ -87,17 +87,24 @@ router.get("/users", async (req, res) => {
 
 // GET /api/users/:id
 router.get("/users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (id === "all") {
+    const users = await User.find({});
+    return res.json({ success: true, data: users });
+  }
+
   try {
-    const user = await User.findById(req.params.id).select("-password"); // ẩn mật khẩu
-    if (!user) {
-      return res.status(404).json({ message: "Không tìm thấy người dùng" });
-    }
-    res.status(200).json(user);
-  } catch (error) {
-    console.error("Lỗi lấy user theo ID:", error);
-    res.status(500).json({ message: "Lỗi server" });
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: "Không tìm thấy user" });
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    console.error("Lỗi lấy user theo ID:", err);
+    res.status(400).json({ success: false, message: "ID không hợp lệ" });
   }
 });
+
 
 router.put('/users/:id', upload.single('avatar'), async (req, res) => {
   try {

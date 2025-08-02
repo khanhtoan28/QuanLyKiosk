@@ -1,3 +1,5 @@
+// ✅ Giữ nguyên toàn bộ code của bạn và cập nhật thêm avatar + tên cho phần người phụ trách cả khi edit
+
 import React, { useEffect, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -23,6 +25,8 @@ const KioskPlanDetail = () => {
   const [editValues, setEditValues] = useState({});
   const [dropdownOptions, setDropdownOptions] = useState({});
   const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
+  const [searchInput, setSearchInput] = useState({});
+  const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,6 +51,10 @@ const KioskPlanDetail = () => {
       }
     };
     fetchDropdowns();
+
+    axios.get("http://localhost:5000/api/users/all").then((res) => {
+      setAllUsers(res.data?.data || []);
+    }).catch(() => {});
   }, []);
 
   const handleToggleEdit = () => {
@@ -86,32 +94,37 @@ const KioskPlanDetail = () => {
     }
 
     try {
+      const newEmails = checkedUsers.map((u) => u.email);
+      const oldEmails = plan.personInCharge || [];
+
+      const addedEmails = newEmails.filter(email => !oldEmails.includes(email));
+      const usersToNotify = checkedUsers.filter(user => addedEmails.includes(user.email));
+
       const res = await updatePlanById(plan._id, {
         ...editValues,
-        personInCharge: checkedUsers.map((u) => u.email),
+        personInCharge: newEmails,
       });
+
       setPlan(res.data);
       setEditMode(false);
 
-      // gửi mail cho từng người
-      await Promise.all(
-        checkedUsers.map((u) =>
+      Swal.fire("Thành công", "Đã lưu thay đổi", "success");
+
+      setTimeout(() => {
+        usersToNotify.forEach((u) => {
           axios.post("http://localhost:5000/api/send", {
             to: u.email,
             subject: "Kế hoạch kiosk đã được cập nhật",
-            text: `Bạn vừa được cập nhật là người phụ trách kế hoạch tại bệnh viện ${editValues.hospitalName || ""}`,
-          })
-        )
-      );
-
-      Swal.fire("Thành công", "Đã lưu thay đổi và gửi email", "success");
+            text: `Bạn vừa được thêm làm người phụ trách kế hoạch tại bệnh viện ${editValues.hospitalName || ""}.`,
+          }).catch(err => {
+            console.error("Lỗi gửi email tới", u.email, err);
+          });
+        });
+      }, 0);
     } catch (err) {
       Swal.fire("Lỗi", "Không thể cập nhật dữ liệu", "error");
     }
   };
-
-  if (loading) return <div className="p-4">Đang tải chi tiết...</div>;
-  if (!plan) return <div className="p-4">Không tìm thấy kế hoạch.</div>;
 
   const fields = [
     { key: "hospitalName", label: "Tên bệnh viện" },
@@ -133,6 +146,9 @@ const KioskPlanDetail = () => {
     { key: "urlPort", label: "Url port", multiline: true },
     { key: "bhxhAccount", label: "Tài khoản check BHXH" },
   ];
+
+  if (loading) return <div className="p-4">Đang tải chi tiết...</div>;
+  if (!plan) return <div className="p-4">Không tìm thấy kế hoạch.</div>;
 
   return (
     <div className="p-6">
@@ -162,32 +178,84 @@ const KioskPlanDetail = () => {
             {editMode ? (
               f.key === "personInCharge" ? (
                 <div className="flex flex-col gap-2">
-                  {personInChargeEmails.map((email, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => {
-                          const updated = [...personInChargeEmails];
-                          updated[idx] = e.target.value;
-                          setPersonInChargeEmails(updated);
-                        }}
-                        placeholder="Nhập email người phụ trách"
-                        className="border p-2 rounded text-sm flex-1"
-                      />
-                      <button
-                        type="button"
-                        className="text-red-500"
-                        onClick={() => {
-                          const updated = [...personInChargeEmails];
-                          updated.splice(idx, 1);
-                          setPersonInChargeEmails(updated);
-                        }}
-                      >
-                        Xoá
-                      </button>
-                    </div>
-                  ))}
+                  {personInChargeEmails.map((email, idx) => {
+                    const input = searchInput[idx] || "";
+                    const suggestions =
+                      input.length >= 3
+                        ? allUsers.filter((u) =>
+                            u.email.toLowerCase().includes(input.toLowerCase())
+                          )
+                        : [];
+                    const user = allUsers.find((u) => u.email === email);
+                    return (
+                      <div key={idx} className="relative">
+                        {email && user && (
+                          <div className="flex items-center border p-2 rounded bg-white mb-1">
+                            <img
+                              src={user?.avatar || `https://i.pravatar.cc/40?u=${email}`}
+                              className="w-6 h-6 rounded-full mr-2"
+                              alt="avatar"
+                            />
+                            <div>
+                              <div className="text-sm font-medium">{user?.name || email}</div>
+                              <div className="text-xs text-gray-500">{email}</div>
+                            </div>
+                            <button
+                              type="button"
+                              className="ml-auto text-red-500 text-xs"
+                              onClick={() => {
+                                const updated = [...personInChargeEmails];
+                                updated.splice(idx, 1);
+                                setPersonInChargeEmails(updated);
+                              }}
+                            >
+                              Xoá
+                            </button>
+                          </div>
+                        )}
+
+                        <input
+                          type="text"
+                          value={email}
+                          onChange={(e) => {
+                            const updated = [...personInChargeEmails];
+                            updated[idx] = e.target.value;
+                            setPersonInChargeEmails(updated);
+                            setSearchInput((prev) => ({ ...prev, [idx]: e.target.value }));
+                          }}
+                          placeholder="Nhập email người phụ trách"
+                          className="border p-2 rounded text-sm w-full"
+                          autoComplete="off"
+                        />
+                        {input.length >= 3 && suggestions.length > 0 && (
+                          <div className="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-60 overflow-auto">
+                            {suggestions.map((user) => (
+                              <div
+                                key={user._id}
+                                className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  const updated = [...personInChargeEmails];
+                                  updated[idx] = user.email;
+                                  setPersonInChargeEmails(updated);
+                                  setSearchInput((prev) => ({ ...prev, [idx]: "" }));
+                                }}
+                              >
+                                <img
+                                  src={user.avatar || `https://i.pravatar.cc/40?u=${user.email}`}
+                                  className="w-8 h-8 rounded-full mr-3"
+                                  alt=""
+                                />
+                                <div>
+                                  <div className="font-medium">{user.name || user.email}</div>
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   <button
                     type="button"
                     className="text-blue-600 text-sm mt-1"
@@ -225,19 +293,37 @@ const KioskPlanDetail = () => {
                 />
               )
             ) : (
-              <div
-                className={
-                  "text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")
-                }
-              >
-                {f.key === "personInCharge"
-                  ? Array.isArray(plan[f.key]) && plan[f.key].length > 0
-                    ? plan[f.key].join(", ")
-                    : "Không có người phụ trách"
-                  : f.isDate
-                  ? formatDate(plan[f.key])
-                  : plan[f.key] || "-"}
-              </div>
+              f.key === "personInCharge" ? (
+                <div className="flex flex-col gap-2">
+                  {Array.isArray(plan.personInCharge) && plan.personInCharge.length > 0 ? (
+                    plan.personInCharge.map((email) => {
+                      const user = allUsers.find((u) => u.email === email);
+                      return (
+                        <div
+                          key={email}
+                          className="flex items-center gap-3 border p-2 rounded bg-gray-50"
+                        >
+                          <img
+                            src={user?.avatar || `https://i.pravatar.cc/40?u=${email}`}
+                            className="w-8 h-8 rounded-full"
+                            alt="avatar"
+                          />
+                          <div>
+                            <div className="font-medium text-sm">{user?.name || email}</div>
+                            <div className="text-xs text-gray-500">{email}</div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-sm italic text-gray-500">Không có người phụ trách</div>
+                  )}
+                </div>
+              ) : f.isDate ? (
+                <div className="text-sm">{formatDate(plan[f.key])}</div>
+              ) : (
+                <div className={"text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")}>{plan[f.key] || "-"}</div>
+              )
             )}
           </div>
         ))}
