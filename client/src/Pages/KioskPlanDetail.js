@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getPlanById, updatePlanById } from "../services/kioskPlanApi";
+import axios from "axios";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -20,7 +21,8 @@ const KioskPlanDetail = () => {
   const [loading, setLoading] = useState(!location.state?.plan);
   const [editMode, setEditMode] = useState(false);
   const [editValues, setEditValues] = useState({});
-  const [dropdownOptions, setDropdownOptions] = useState({}); // ✅ load động
+  const [dropdownOptions, setDropdownOptions] = useState({});
+  const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,12 +30,12 @@ const KioskPlanDetail = () => {
       const res = await getPlanById(id);
       setPlan(res.data);
       setEditValues(res.data);
+      setPersonInChargeEmails(res.data.personInCharge || [""]);
       setLoading(false);
     };
     if (!location.state?.plan) fetchData();
   }, [id, location.state?.plan]);
 
-  // ✅ Load dropdown từ backend
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
@@ -50,6 +52,7 @@ const KioskPlanDetail = () => {
   const handleToggleEdit = () => {
     setEditMode((prev) => !prev);
     setEditValues(plan);
+    setPersonInChargeEmails(plan.personInCharge || [""]);
   };
 
   const handleChange = (key, value) => {
@@ -57,11 +60,51 @@ const KioskPlanDetail = () => {
   };
 
   const handleSave = async () => {
+    const checkedUsers = [];
+    const invalidEmails = [];
+
+    for (const email of personInChargeEmails) {
+      const trimmed = email.trim();
+      if (!trimmed || !trimmed.includes("@")) continue;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/users?email=${trimmed}`);
+        const user = res.data?.data;
+        if (!user) {
+          invalidEmails.push(trimmed);
+        } else {
+          checkedUsers.push(user);
+        }
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra email:", err);
+        invalidEmails.push(trimmed);
+      }
+    }
+
+    if (invalidEmails.length > 0) {
+      Swal.fire("Email không hợp lệ", `Các email sau không tồn tại: ${invalidEmails.join(", ")}`, "warning");
+      return;
+    }
+
     try {
-      const res = await updatePlanById(plan._id, editValues);
+      const res = await updatePlanById(plan._id, {
+        ...editValues,
+        personInCharge: checkedUsers.map((u) => u.email),
+      });
       setPlan(res.data);
       setEditMode(false);
-      Swal.fire("Thành công", "Đã lưu thay đổi", "success");
+
+      // gửi mail cho từng người
+      await Promise.all(
+        checkedUsers.map((u) =>
+          axios.post("http://localhost:5000/api/send", {
+            to: u.email,
+            subject: "Kế hoạch kiosk đã được cập nhật",
+            text: `Bạn vừa được cập nhật là người phụ trách kế hoạch tại bệnh viện ${editValues.hospitalName || ""}`,
+          })
+        )
+      );
+
+      Swal.fire("Thành công", "Đã lưu thay đổi và gửi email", "success");
     } catch (err) {
       Swal.fire("Lỗi", "Không thể cập nhật dữ liệu", "error");
     }
@@ -117,7 +160,43 @@ const KioskPlanDetail = () => {
           <div key={f.key} className="border rounded p-3">
             <div className="text-xs text-gray-500 mb-1">{f.label}</div>
             {editMode ? (
-              f.isDate ? (
+              f.key === "personInCharge" ? (
+                <div className="flex flex-col gap-2">
+                  {personInChargeEmails.map((email, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          const updated = [...personInChargeEmails];
+                          updated[idx] = e.target.value;
+                          setPersonInChargeEmails(updated);
+                        }}
+                        placeholder="Nhập email người phụ trách"
+                        className="border p-2 rounded text-sm flex-1"
+                      />
+                      <button
+                        type="button"
+                        className="text-red-500"
+                        onClick={() => {
+                          const updated = [...personInChargeEmails];
+                          updated.splice(idx, 1);
+                          setPersonInChargeEmails(updated);
+                        }}
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-blue-600 text-sm mt-1"
+                    onClick={() => setPersonInChargeEmails([...personInChargeEmails, ""])}
+                  >
+                    + Thêm người phụ trách
+                  </button>
+                </div>
+              ) : f.isDate ? (
                 <input
                   type="date"
                   className="w-full text-sm border rounded p-1"
@@ -151,7 +230,13 @@ const KioskPlanDetail = () => {
                   "text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")
                 }
               >
-                {f.isDate ? formatDate(plan[f.key]) : plan[f.key] || "-"}
+                {f.key === "personInCharge"
+                  ? Array.isArray(plan[f.key]) && plan[f.key].length > 0
+                    ? plan[f.key].join(", ")
+                    : "Không có người phụ trách"
+                  : f.isDate
+                  ? formatDate(plan[f.key])
+                  : plan[f.key] || "-"}
               </div>
             )}
           </div>

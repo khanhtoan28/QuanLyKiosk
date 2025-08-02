@@ -18,9 +18,11 @@ const transporter = nodemailer.createTransport({
 
 
 router.post("/send", async (req, res) => {
-  const { to, subject, message } = req.body;
+  const { to, subject, message, text } = req.body;
 
-  if (!to || !subject || !message) {
+  const emailBody = message || text; // chấp nhận cả hai
+
+  if (!to || !subject || !emailBody) {
     return res.status(400).json({ success: false, error: "Thiếu thông tin email" });
   }
 
@@ -29,7 +31,7 @@ router.post("/send", async (req, res) => {
       from: `"TAG Admin" <${process.env.EMAIL_USER}>`,
       to,
       subject,
-      html: `<p>${message}</p>`,
+      html: `<p>${emailBody}</p>`,
     });
 
     res.json({ success: true });
@@ -38,5 +40,6 @@ router.post("/send", async (req, res) => {
     res.status(500).json({ success: false, error: "Không gửi được email" });
   }
 });
+
 
 export default router;

@@ -17,13 +17,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Mount routes
+
 app.use("/api", authRouter);
 app.use("/api/kiosk-plans", kioskPlanRoutes);
 app.use("/api/dropdown-options", dropdownRoutes);
 app.use("/api/notifications", notificationsRoute);
+app.use("/api", notificationsRoute); 
 
-// ✅ Root route
 app.get("/", (req, res) => {
   res.send("✅ Backend server is running...");
 });

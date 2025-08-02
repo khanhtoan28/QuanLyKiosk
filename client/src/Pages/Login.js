@@ -30,16 +30,22 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.data.token);
+  const user = data.data.user;
+  console.log("🧠 user:", user); // 👈 Thêm dòng này
+  console.log("🆔 user.id:", user.id); // 👈 Kiểm tra ID có tồn tại không
 
-        // ✅ Lưu nguyên user từ backend (bao gồm name, email, role...)
-        localStorage.setItem("user", JSON.stringify(data.data.user));
+  localStorage.setItem("token", data.data.token);
+ localStorage.setItem("user", JSON.stringify(user));
+localStorage.setItem("userId", user.id || user._id); // 👈 tự fallback nếu "id" bị undefined
 
-        setSuccessMessage("Đăng nhập thành công!");
+  setSuccessMessage("Đăng nhập thành công!");
 
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+  setTimeout(() => {
+    navigate("/dashboard");
+  }, 1500);
+
+
+
       } else {
         setErrorMessage(data.message || "Đăng nhập thất bại");
       }

@@ -23,4 +23,3 @@ router.delete("/:id", deletePlan);
 router.post("/import", upload.single("file"), importExcel);
 
 export default router;
-

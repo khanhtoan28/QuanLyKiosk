@@ -12,6 +12,7 @@ import UserManagement from "./UserManagement";
 import KioskPlanPage from "./KioskPlanPage";
 import KioskPlanDetail from "./KioskPlanDetail";
 import KioskPlanCreate from "./KioskPlanCreate";
+import ProfilePage from "./ProfilePage";
 
 export {
   Login,
@@ -27,5 +28,6 @@ export {
   UserManagement,
   KioskPlanPage,
   KioskPlanDetail,
-  KioskPlanCreate
+  KioskPlanCreate,
+  ProfilePage
 };

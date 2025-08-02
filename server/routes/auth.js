@@ -84,6 +84,19 @@ router.get("/users", async (req, res) => {
   }
 });
 
+// GET /api/users/:id
+router.get("/users/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password"); // ẩn mật khẩu
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Lỗi lấy user theo ID:", error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
 
 
 export default router;

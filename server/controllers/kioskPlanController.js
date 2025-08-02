@@ -4,28 +4,24 @@ import parseExcelFile from "../utils/excelParser.js";
 const toISODate = (value) => {
   if (!value && value !== 0) return "";
 
-  // Nếu là số (Excel serial number)
   if (typeof value === "number" && !isNaN(value)) {
     const utcMillis = Date.UTC(1899, 11, 30) + (value + 1) * 86400000;
     return new Date(utcMillis).toISOString().slice(0, 10); // yyyy-mm-dd
 
   }
 
-  // Nếu là chuỗi "dd/mm/yyyy" hoặc ISO
+
   if (typeof value === "string") {
     const trimmed = value.trim();
 
-    // Nếu đúng định dạng ISO
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
 
-    // Nếu là định dạng dd/mm/yyyy hoặc dd-mm-yyyy
     const m = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (m) {
       const [_, dd, mm, yyyy] = m;
       return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
 
-    // Thử parse các trường hợp khác
     const d = new Date(trimmed);
     if (!isNaN(d)) {
       const yyyy = d.getUTCFullYear();

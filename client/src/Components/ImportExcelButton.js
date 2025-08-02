@@ -14,14 +14,11 @@ const ImportExcelButton = ({ onFileSelect, disabled, className = "" }) => {
 
     if (!allowedTypes.includes(file.type)) {
       alert("Chỉ chấp nhận file Excel .xlsx hoặc .xls");
-      // reset input để lần sau vẫn chọn lại file cũ
       inputRef.current.value = null;
       return;
     }
 
     onFileSelect(file);
-
-    // reset input để có thể chọn lại cùng file đó nếu cần
     inputRef.current.value = null;
   };
 

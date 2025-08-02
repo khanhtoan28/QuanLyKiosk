@@ -13,7 +13,8 @@ import {
   UserManagement,
   KioskPlanPage,
   KioskPlanDetail,
-  KioskPlanCreate  
+  KioskPlanCreate,
+  ProfilePage
 } from "./Pages/index";
 import Layout from "./Layout";
 
@@ -41,6 +42,7 @@ const App = () => {
           <Route path="/kiosk-plans" element={<KioskPlanPage />} />
           <Route path="/kiosk-plans/:id" element={<KioskPlanDetail />} /> {/* ✅ thêm */}
           <Route path="/kiosk-plans/create" element={<KioskPlanCreate />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
