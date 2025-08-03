@@ -4,6 +4,7 @@ import axios from "axios";
 const EditDropdownModal = ({ onClose }) => {
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
 
   const displayNames = {
     cccdReaderType: "Loại đầu đọc CCCD",
@@ -12,14 +13,20 @@ const EditDropdownModal = ({ onClose }) => {
     hopStatus: "Trạng thái làm việc với bệnh viện",
     devStatus: "Trạng thái làm việc với dev",
     requestStatus: "Trạng thái xử lý yêu cầu",
+    personInCharge: "Người phụ trách"
   };
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/dropdown-options")
-      .then((res) => {
-        setOptions(res.data);
-        setLoading(false);
-      });
+    const fetchData = async () => {
+      const [optRes, userRes] = await Promise.all([
+        axios.get("http://localhost:5000/api/dropdown-options"),
+        axios.get("http://localhost:5000/api/users")
+      ]);
+      setOptions(optRes.data);
+      setUsers(userRes.data);
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
   const handleChange = (key, index, value) => {
@@ -31,13 +38,27 @@ const EditDropdownModal = ({ onClose }) => {
   const handleAdd = (key) => {
     setOptions((prev) => ({
       ...prev,
-      [key]: [...prev[key], ""],
+      [key]: [...(prev[key] || []), key === "personInCharge" ? null : ""],
     }));
   };
 
   const handleRemove = (key, index) => {
     const updated = [...options[key]];
     updated.splice(index, 1);
+    setOptions((prev) => ({ ...prev, [key]: updated }));
+  };
+
+  const handleUserSelect = (key, index, userId) => {
+    const user = users.find(u => u._id === userId);
+    if (!user) return;
+    const selected = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar
+    };
+    const updated = [...(options[key] || [])];
+    updated[index] = selected;
     setOptions((prev) => ({ ...prev, [key]: updated }));
   };
 
@@ -48,7 +69,7 @@ const EditDropdownModal = ({ onClose }) => {
   };
 
   if (loading) return null;
- 
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded shadow-lg w-full max-w-3xl">
@@ -60,16 +81,36 @@ const EditDropdownModal = ({ onClose }) => {
         </div>
 
         <div className="h-[60vh] overflow-y-auto space-y-6 pr-2">
-          {Object.entries(options)
-            .filter(([key]) => key !== "personInCharge")
-            .map(([key, values]) => (
+          {Object.entries(options).map(([key, values]) => (
+            <div key={key}>
+              <div className="font-semibold mb-1">{displayNames[key] || key}</div>
 
-              <div key={key}>
-                <div className="font-semibold mb-1">
-                  {displayNames[key] || key}
-                </div>
-
-                {values.map((val, idx) => (
+              {key === "personInCharge" ? (
+                values.map((val, idx) => (
+                  <div key={idx} className="flex gap-2 mb-1 items-center">
+                    <select
+                      value={val?._id || ""}
+                      onChange={(e) => handleUserSelect(key, idx, e.target.value)}
+                      className="border px-2 py-1 rounded w-full text-sm"
+                    >
+                      <option value="">-- Chọn người phụ trách --</option>
+                      {users.map((u) => (
+                        <option key={u._id} value={u._id}>
+                          {u.name || u.email} ({u.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(key, idx)}
+                      className="text-red-500 text-sm"
+                    >
+                      Xoá
+                    </button>
+                  </div>
+                ))
+              ) : (
+                values.map((val, idx) => (
                   <div key={idx} className="flex gap-2 mb-1">
                     <input
                       value={val}
@@ -84,16 +125,18 @@ const EditDropdownModal = ({ onClose }) => {
                       Xoá
                     </button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => handleAdd(key)}
-                  className="text-blue-600 text-sm mt-1"
-                >
-                  + Thêm giá trị
-                </button>
-              </div>
-            ))}
+                ))
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleAdd(key)}
+                className="text-blue-600 text-sm mt-1"
+              >
+                + Thêm giá trị
+              </button>
+            </div>
+          ))}
         </div>
 
         <div className="mt-4 text-right">

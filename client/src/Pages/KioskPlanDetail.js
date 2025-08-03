@@ -54,7 +54,7 @@ const KioskPlanDetail = () => {
 
     axios.get("http://localhost:5000/api/users/all").then((res) => {
       setAllUsers(res.data?.data || []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const handleToggleEdit = () => {
@@ -68,25 +68,31 @@ const KioskPlanDetail = () => {
   };
 
   const handleSave = async () => {
+    const emailChecks = personInChargeEmails.map(email => {
+      const trimmed = email.trim();
+      if (!trimmed || !trimmed.includes("@")) return null;
+      return axios.get(`http://localhost:5000/api/users?email=${trimmed}`)
+        .then(res => res.data?.data || null)
+        .catch(err => {
+          console.error("Lỗi khi kiểm tra email:", err);
+          return null;
+        });
+    });
+
+    const results = await Promise.all(emailChecks);
+
     const checkedUsers = [];
     const invalidEmails = [];
 
-    for (const email of personInChargeEmails) {
-      const trimmed = email.trim();
-      if (!trimmed || !trimmed.includes("@")) continue;
-      try {
-        const res = await axios.get(`http://localhost:5000/api/users?email=${trimmed}`);
-        const user = res.data?.data;
-        if (!user) {
-          invalidEmails.push(trimmed);
-        } else {
-          checkedUsers.push(user);
-        }
-      } catch (err) {
-        console.error("Lỗi khi kiểm tra email:", err);
-        invalidEmails.push(trimmed);
+    results.forEach((user, idx) => {
+      const email = personInChargeEmails[idx].trim();
+      if (!user) {
+        invalidEmails.push(email);
+      } else {
+        checkedUsers.push(user);
       }
-    }
+    });
+
 
     if (invalidEmails.length > 0) {
       Swal.fire("Email không hợp lệ", `Các email sau không tồn tại: ${invalidEmails.join(", ")}`, "warning");
@@ -183,8 +189,8 @@ const KioskPlanDetail = () => {
                     const suggestions =
                       input.length >= 3
                         ? allUsers.filter((u) =>
-                            u.email.toLowerCase().includes(input.toLowerCase())
-                          )
+                          u.email.toLowerCase().includes(input.toLowerCase())
+                        )
                         : [];
                     const user = allUsers.find((u) => u.email === email);
                     return (

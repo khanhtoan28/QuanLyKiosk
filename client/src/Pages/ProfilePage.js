@@ -9,6 +9,10 @@ const Spinner = () => (
 );
 
 const ProfilePage = () => {
+  const localUser = JSON.parse(localStorage.getItem("user")) || {};
+  const userId = localUser._id || localUser.id;
+
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,9 +26,7 @@ const ProfilePage = () => {
   const [countdown, setCountdown] = useState(0);
   const [sendingCode, setSendingCode] = useState(false);
   const [confirmingCode, setConfirmingCode] = useState(false);
-
   const timerRef = useRef(null);
-  const userId = localStorage.getItem('userId');
 
   const startCountdown = useCallback((expiryTime) => {
     const remaining = Math.floor((expiryTime - Date.now()) / 1000);
@@ -51,8 +53,9 @@ const ProfilePage = () => {
     }
     axios.get(`http://localhost:5000/api/users/${userId}`)
       .then((res) => {
-        setUser(res.data);
-        setFormData({ name: res.data.name, email: res.data.email, avatar: null });
+        const userData = res.data.data;
+        setUser(userData);
+        setFormData({ name: userData.name, email: userData.email, avatar: null });
         setLoading(false);
       })
       .catch(() => {
@@ -103,7 +106,15 @@ const ProfilePage = () => {
 
     try {
       const res = await axios.put(`http://localhost:5000/api/users/${userId}`, data);
-      setUser(res.data);
+      const updatedUser = res.data;
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        avatar: updatedUser.avatar
+      }));
       setEditing(false);
       setFormData({ ...formData, avatar: null });
       setModalContent({ type: 'success', title: 'Cập nhật thành công' });
@@ -180,7 +191,11 @@ const ProfilePage = () => {
             <input type="file" id="avatarUpload" accept="image/*" onChange={handleFileChange} className="hidden" />
             <label htmlFor="avatarUpload" className="cursor-pointer">
               <img
-                src={formData.avatar ? URL.createObjectURL(formData.avatar) : user.avatar || "https://i.pravatar.cc/150?img=3"}
+                src={
+                  formData.avatar
+                    ? URL.createObjectURL(formData.avatar)
+                    : user?.avatar || "https://i.pravatar.cc/150?img=3"
+                }
                 alt="Avatar"
                 className="w-full h-full rounded-full object-cover border group-hover:opacity-90"
               />
@@ -196,17 +211,32 @@ const ProfilePage = () => {
           <div>
             {editing ? (
               <>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="Họ tên" className="w-full border rounded px-3 py-2 mb-2" />
-                <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="w-full border rounded px-3 py-2" />
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Họ tên"
+                  className="w-full border rounded px-3 py-2 mb-2"
+                />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Email"
+                  className="w-full border rounded px-3 py-2"
+                />
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-semibold">{user.name}</h2>
-                <p className="text-gray-600">{user.email}</p>
+                <h2 className="text-2xl font-semibold">{user?.name || 'Chưa có tên'}</h2>
+                <p className="text-gray-600">{user?.email || 'Chưa có email'}</p>
               </>
             )}
-            <p className="text-gray-500 mt-1">Quyền: {user.role}</p>
-            <p className="text-gray-400 mt-1 text-sm">ID: {user._id}</p>
+
+            <p className="text-gray-500 mt-1">Quyền: {user?.role || 'Không xác định'}</p>
+            <p className="text-gray-400 mt-1 text-sm">ID: {user?._id || '---'}</p>
           </div>
         </div>
 
