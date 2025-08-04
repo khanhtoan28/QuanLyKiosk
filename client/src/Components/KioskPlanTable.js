@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
-import { Eye } from "lucide-react";
+import { Eye, Filter, Check } from "lucide-react";
 import EditDropdownModal from "./EditDropdownModal";
 import axios from "axios";
 
@@ -28,6 +28,8 @@ const KioskPlanTable = ({ data, onDelete }) => {
   const [dropdownOptions, setDropdownOptions] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [allUsers, setAllUsers] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedPersons, setSelectedPersons] = useState([]);
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const itemsPerPage = 10;
   const navigate = useNavigate();
@@ -41,10 +43,31 @@ const KioskPlanTable = ({ data, onDelete }) => {
   }, [data]);
 
   const filteredData = useMemo(() => {
-    return sortedData.filter((plan) =>
-      normalizeText(plan.hospitalName || "").includes(normalizeText(searchTerm))
-    );
-  }, [sortedData, searchTerm]);
+    return sortedData
+      .filter((plan) =>
+        normalizeText(plan.hospitalName || "").includes(normalizeText(searchTerm))
+      )
+      .filter((plan) =>
+        selectedPersons.length > 0
+          ? plan.personInCharge?.some((email) => selectedPersons.includes(email))
+          : true
+      );
+  }, [sortedData, searchTerm, selectedPersons]);
+
+  const uniquePersons = useMemo(() => {
+    const emails = new Set();
+    data.forEach((plan) => {
+      plan.personInCharge?.forEach((email) => emails.add(email));
+    });
+    return [...emails].map((email) => {
+      const userInfo = allUsers.find((u) => u.email === email);
+      return {
+        email,
+        name: userInfo?.name || email,
+        avatar: userInfo?.avatar || `https://i.pravatar.cc/40?u=${email}`,
+      };
+    });
+  }, [data, allUsers]);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
@@ -136,24 +159,40 @@ const KioskPlanTable = ({ data, onDelete }) => {
       </div>
     );
   };
+
   useEffect(() => {
     axios.get("http://localhost:5000/api/users/all")
       .then(res => setAllUsers(res.data?.data || []))
       .catch(err => console.error("Lỗi load user:", err));
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const filterElement = document.getElementById("filter-dropdown");
+      if (filterElement && !filterElement.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="overflow-x-auto">
-      <div className="mb-4 flex justify-between items-center">
-        <input
-          type="text"
-          placeholder="🔍 Tìm tên bệnh viện..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border px-3 py-1 rounded w-64"
-        />
+      <div className="mb-4 flex justify-between items-center flex-wrap gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          <input
+            type="text"
+            placeholder="🔍 Tìm tên bệnh viện..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border px-3 py-1 rounded w-64"
+          />
+        </div>
+
         {user?.role === "admin" && (
           <button
             onClick={() => setShowModal(true)}
@@ -162,7 +201,6 @@ const KioskPlanTable = ({ data, onDelete }) => {
             ⚙️ Sửa dropdown kế hoạch
           </button>
         )}
-
       </div>
 
       {selectedIds.length > 0 && (
@@ -193,7 +231,56 @@ const KioskPlanTable = ({ data, onDelete }) => {
             <th className="p-2 border w-[100px] text-center">Deadline</th>
             <th className="p-2 border w-[100px] text-center">Ưu tiên</th>
             <th className="p-2 border w-[200px] text-center">Trạng thái Dev</th>
-            <th className="p-2 border w-[200px] text-center">Người phụ trách</th>
+            <th className="p-2 border w-[200px] text-center relative">
+              <div className="flex justify-center items-center gap-1">
+                <span>Người phụ trách</span>
+                <button
+                  onClick={() => setFilterOpen(!filterOpen)}
+                  className="ml-1"
+                >
+                  <Filter size={14} />
+                </button>
+
+                {filterOpen && (
+                  <div
+                    id="filter-dropdown"
+                    className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border shadow rounded text-left"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+
+                    <ul className="max-h-64 overflow-y-auto">
+                      {uniquePersons.map((person) => (
+                        <li
+                          key={person.email}
+                          onClick={() => {
+                            setSelectedPersons((prev) =>
+                              prev.includes(person.email)
+                                ? prev.filter((e) => e !== person.email)
+                                : [...prev, person.email]
+                            );
+                          }}
+                          className="px-3 py-2 hover:bg-gray-100 flex justify-between items-center cursor-pointer"
+                        >
+                          <span>{person.name}</span>
+                          {selectedPersons.includes(person.email) && <Check size={16} />}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-t px-3 py-2 text-sm text-right">
+                      <button
+                        onClick={() => {
+                          setSelectedPersons([]);
+                          setFilterOpen(false);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Bỏ lọc
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </th>
             <th className="p-2 border w-[150px] text-center">Ngày nghiệm thu</th>
             <th className="p-2 border w-[100px] text-center">Chi tiết</th>
             <th className="p-2 border w-[40px] text-center">✔</th>
@@ -228,22 +315,22 @@ const KioskPlanTable = ({ data, onDelete }) => {
                 </td>
                 <td className="p-2 border text-center">{plan.devStatus || "-"}</td>
                 <td className="p-2 text-center">
-                    <div className="flex flex-col gap-1">
-                      {plan.personInCharge?.map((email) => {
-                        const user = allUsers.find((u) => u.email === email);
-                        return (
-                          <div key={email} className="flex items-center gap-2">
-                            <img
-                              src={user?.avatar || `https://i.pravatar.cc/40?u=${email}`}
-                              className="w-6 h-6 rounded-full"
-                              alt="avatar"
-                            />
-                            <span className="text-sm">{user?.name || email}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </td>
+                  <div className="flex flex-col gap-1">
+                    {plan.personInCharge?.map((email) => {
+                      const user = allUsers.find((u) => u.email === email);
+                      return (
+                        <div key={email} className="flex items-center gap-2">
+                          <img
+                            src={user?.avatar || `https://i.pravatar.cc/40?u=${email}`}
+                            className="w-6 h-6 rounded-full"
+                            alt="avatar"
+                          />
+                          <span className="text-sm">{user?.name || email}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </td>
                 <td className="p-2 border text-center">{formatDate(plan.deliveryDate)}</td>
                 <td className="p-2 border">
                   <div className="flex justify-center items-center">
@@ -270,14 +357,14 @@ const KioskPlanTable = ({ data, onDelete }) => {
 
       {renderPagination()}
 
-      {showModal && (
+       {showModal && (
         <EditDropdownModal
           onClose={() => setShowModal(false)}
           onSave={(options) => {
-            setDropdownOptions(options);
-            console.log("🔄 Dropdown đã cập nhật:", options);
+            setDropdownOptions({ ...options });
+            setShowModal(false);
           }}
-          initialOptions={dropdownOptions}
+          initialOptions={{ ...dropdownOptions }}
         />
       )}
     </div>

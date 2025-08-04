@@ -37,6 +37,7 @@ const KioskPlanCreate = () => {
     const [searchInput, setSearchInput] = useState({});
     const [recentEmails, setRecentEmails] = useState(() => JSON.parse(localStorage.getItem("recentEmails") || "[]"));
     const [allUsers, setAllUsers] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [form, setForm] = useState(
         Object.fromEntries(Object.keys(fieldLabels).map((key) => [key, ""]))
     );
@@ -60,9 +61,13 @@ const KioskPlanCreate = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return; // chặn nếu đang gửi
+
+        setIsSubmitting(true);
 
         if (!form.hospitalName.trim()) {
             Swal.fire("Thiếu thông tin", "Vui lòng nhập Tên bệnh viện.", "warning");
+            setIsSubmitting(false);
             return;
         }
 
@@ -94,11 +99,11 @@ const KioskPlanCreate = () => {
                 title: "Email không hợp lệ",
                 html: `Các email sau không tồn tại trong hệ thống:<br><b>${invalidEmails.join("<br>")}</b>`,
             });
+            setIsSubmitting(false);
             return;
         }
 
         try {
-            // 🚀 Gửi song song
             await Promise.all(
                 checkedUsers.map((user) =>
                     axios.post("http://localhost:5000/api/notifications/send", {
@@ -119,9 +124,10 @@ const KioskPlanCreate = () => {
         } catch (err) {
             console.error("Lỗi khi tạo kế hoạch hoặc gửi mail:", err.response?.data || err.message);
             Swal.fire("Lỗi", "Tạo kế hoạch thất bại.", "error");
+        } finally {
+            setIsSubmitting(false); // đảm bảo luôn reset trạng thái
         }
     };
-
 
     useEffect(() => {
         axios.get("http://localhost:5000/api/users/all").then((res) => {
@@ -263,10 +269,12 @@ const KioskPlanCreate = () => {
                 <div className="col-span-2 mt-4 flex gap-2">
                     <button
                         type="submit"
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                        disabled={isSubmitting}
+                        className={`px-4 py-2 rounded text-white ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
                     >
-                        Lưu kế hoạch
+                        {isSubmitting ? "Đang lưu..." : "Lưu kế hoạch"}
                     </button>
+
                     <button
                         type="button"
                         onClick={() => navigate("/kiosk-plans")}
