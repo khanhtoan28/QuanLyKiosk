@@ -4,13 +4,7 @@ import {
   Login,
   Register,
   Role,
-  ContentManagement,
-  CustomerManagement,
-  HomeService,
-  MarketPlace,
   Settings,
-  ShowcaseManagement,
-  UserManagement,
   KioskPlanPage,
   KioskPlanDetail,
   KioskPlanCreate,
@@ -30,14 +24,7 @@ const App = () => {
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/role-management" element={<Role />} />
-          <Route path="/content-management" element={<ContentManagement />} />
-          <Route path="/customer-management" element={<CustomerManagement />} />
-          <Route path="/home-service" element={<HomeService />} />
-          <Route path="/market-place" element={<MarketPlace />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/showcase-management" element={<ShowcaseManagement />} />
-          <Route path="/user-management" element={<UserManagement />} />
-
           {/* Kiosk plans */}
           <Route path="/kiosk-plans" element={<KioskPlanPage />} />
           <Route path="/kiosk-plans/:id" element={<KioskPlanDetail />} /> {/* ✅ thêm */}

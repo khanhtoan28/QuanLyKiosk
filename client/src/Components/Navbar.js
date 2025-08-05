@@ -13,8 +13,10 @@ const Navbar = ({ pagename }) => {
 
   useEffect(() => {
     const user = getUser();
+    console.log("User in Navbar:", user); // 👈 thêm dòng này
     setUserInfo(user);
   }, []);
+
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -52,7 +54,18 @@ const Navbar = ({ pagename }) => {
           onClick={() => setDropdownOpen(!dropdownOpen)}
         >
           <div className="rounded-full h-10 w-10 bg-gray-300 flex items-center justify-center mr-4">
-            <img src={demouser} alt="avatar" className="rounded-full h-8 w-8" />
+            <img
+              src={
+                userInfo?.avatar
+                  ? userInfo.avatar.startsWith("http")
+                    ? userInfo.avatar
+                    : `http://localhost:5000${userInfo.avatar}`
+                  : demouser
+              }
+              alt="avatar"
+              className="rounded-full h-8 w-8 object-cover"
+            />
+
           </div>
           <div className="flex flex-col text-sm">
             <span className="font-medium">{userInfo?.name || "Unknown"}</span>

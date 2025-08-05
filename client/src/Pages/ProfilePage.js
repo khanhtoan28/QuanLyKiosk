@@ -109,7 +109,7 @@ const ProfilePage = () => {
       const updatedUser = res.data;
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify({
-        _id: updatedUser._id,
+        id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
@@ -118,6 +118,7 @@ const ProfilePage = () => {
       setEditing(false);
       setFormData({ ...formData, avatar: null });
       setModalContent({ type: 'success', title: 'Cập nhật thành công' });
+      window.location.reload();
     } catch (err) {
       setModalContent({ type: 'error', title: 'Lỗi khi cập nhật', body: 'Vui lòng thử lại sau.' });
     } finally {

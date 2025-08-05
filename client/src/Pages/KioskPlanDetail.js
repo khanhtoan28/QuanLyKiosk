@@ -25,6 +25,7 @@ const KioskPlanDetail = () => {
   const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
   const [searchInput, setSearchInput] = useState({});
   const [allUsers, setAllUsers] = useState([]);
+  const [noteInput, setNoteInput] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,8 +36,10 @@ const KioskPlanDetail = () => {
       setPersonInChargeEmails(res.data.personInCharge || [""]);
       setLoading(false);
     };
-    if (!location.state?.plan) fetchData();
-  }, [id, location.state?.plan]);
+
+    fetchData(); // ✅ Luôn gọi API, không dùng location.state.plan nữa
+  }, [id]);
+
 
   useEffect(() => {
     const fetchDropdowns = async () => {
@@ -59,10 +62,28 @@ const KioskPlanDetail = () => {
     setEditMode((prev) => !prev);
     setEditValues(plan);
     setPersonInChargeEmails(plan.personInCharge || [""]);
+    setNoteInput("");
   };
 
   const handleChange = (key, value) => {
     setEditValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleEditNote = async (index, newText) => {
+    const updatedNotes = [...(editValues.lastNote || [])];
+    updatedNotes[index] = {
+      text: newText.trim(),
+      timestamp: new Date().toLocaleString("vi-VN") + " (đã sửa)",
+    };
+    setEditValues((prev) => ({ ...prev, lastNote: updatedNotes }));
+    await handleSave();
+  };
+
+  const handleDeleteNote = async (index) => {
+    const updatedNotes = [...(editValues.lastNote || [])];
+    updatedNotes.splice(index, 1);
+    setEditValues((prev) => ({ ...prev, lastNote: updatedNotes }));
+    await handleSave();
   };
 
   const handleSave = async () => {
@@ -78,7 +99,6 @@ const KioskPlanDetail = () => {
     });
 
     const results = await Promise.all(emailChecks);
-
     const checkedUsers = [];
     const invalidEmails = [];
 
@@ -91,7 +111,6 @@ const KioskPlanDetail = () => {
       }
     });
 
-
     if (invalidEmails.length > 0) {
       Swal.fire("Email không hợp lệ", `Các email sau không tồn tại: ${invalidEmails.join(", ")}`, "warning");
       return;
@@ -100,20 +119,36 @@ const KioskPlanDetail = () => {
     try {
       const newEmails = checkedUsers.map((u) => u.email);
       const oldEmails = plan.personInCharge || [];
-
       const addedEmails = newEmails.filter(email => !oldEmails.includes(email));
       const usersToNotify = checkedUsers.filter(user => addedEmails.includes(user.email));
 
-      const res = await updatePlanById(plan._id, {
+      const mergedNotes = [...(editValues.lastNote || [])];
+      if (noteInput.trim()) {
+        mergedNotes.unshift({
+          text: noteInput.trim(),
+          timestamp: new Date().toLocaleString("vi-VN"),
+        });
+      }
+
+      const payload = {
         ...editValues,
         personInCharge: newEmails,
-      });
+        lastNote: mergedNotes
+      };
 
-      setPlan(res.data);
+      await updatePlanById(plan._id, payload);
+
+      // ✅ Gọi lại API để lấy bản mới nhất
+      const updated = await getPlanById(plan._id);
+      setPlan(updated.data);
+      setEditValues(updated.data);
+      setPersonInChargeEmails(updated.data.personInCharge || []);
       setEditMode(false);
+      setNoteInput("");
 
       Swal.fire("Thành công", "Đã lưu thay đổi", "success");
 
+      // ✅ Gửi email
       setTimeout(() => {
         usersToNotify.forEach((u) => {
           axios.post("http://localhost:5000/api/send", {
@@ -130,18 +165,19 @@ const KioskPlanDetail = () => {
     }
   };
 
+
   const fields = [
     { key: "hospitalName", label: "Tên bệnh viện" },
+    { key: "quantity", label: "Số lượng" },
+    { key: "priorityLevel", label: "Mức độ ưu tiên" },
+    { key: "deliveryDate", label: "Ngày chuyển nghiệm thu", isDate: true },
+    { key: "deadline", label: "Deadline", isDate: true },
+    { key: "cccdReaderType", label: "Loại đầu đọc CCCD" },
     { key: "lastNote", label: "Ghi chú làm việc gần nhất", multiline: true },
     { key: "additionalRequest", label: "Yêu cầu thêm của bệnh viện", multiline: true },
     { key: "requestDate", label: "Ngày phát sinh yêu cầu", isDate: true },
-    { key: "deadline", label: "Deadline", isDate: true },
-    { key: "deliveryDate", label: "Ngày chuyển nghiệm thu", isDate: true },
-    { key: "quantity", label: "Số lượng" },
-    { key: "cccdReaderType", label: "Loại đầu đọc CCCD" },
-    { key: "deviceType", label: "Loại thiết bị" },
-    { key: "priorityLevel", label: "Mức độ ưu tiên" },
     { key: "personInCharge", label: "Người phụ trách" },
+    { key: "deviceType", label: "Loại thiết bị" },
     { key: "devStatus", label: "Trạng thái làm việc với dev" },
     { key: "hopStatus", label: "Trạng thái làm việc với bệnh viện" },
     { key: "requestStatus", label: "Trạng thái xử lý yêu cầu" },
@@ -175,9 +211,9 @@ const KioskPlanDetail = () => {
         </Link>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="columns-1 md:columns-2 gap-4 space-y-4">
         {fields.map((f) => (
-          <div key={f.key} className="border rounded p-3">
+          <div key={f.key} className="break-inside-avoid border rounded p-3">
             <div className="text-xs text-gray-500 mb-1">{f.label}</div>
             {editMode ? (
               f.key === "personInCharge" ? (
@@ -268,6 +304,97 @@ const KioskPlanDetail = () => {
                     + Thêm người phụ trách
                   </button>
                 </div>
+              ) : f.key === "lastNote" ? (
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    rows={3}
+                    className="w-full text-sm border rounded p-2"
+                    placeholder="Nhập ghi chú mới..."
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!noteInput.trim()) return;
+                      const newNote = {
+                        text: noteInput.trim(),
+                        timestamp: new Date().toLocaleString("vi-VN"),
+                      };
+                      handleChange("lastNote", [newNote, ...(editValues.lastNote || [])]);
+                      setNoteInput("");
+                    }}
+                    className="text-blue-600 text-sm self-start"
+                  >
+                    + Thêm ghi chú
+                  </button>
+                  {(editValues.lastNote || []).map((note, idx) => (
+                    <div key={idx} className="bg-gray-50 border p-2 rounded text-sm relative group">
+                      {note.editing ? (
+                        <>
+                          <textarea
+                            className="w-full text-sm border rounded p-1 mb-1"
+                            value={note.text}
+                            onChange={(e) => {
+                              const updated = [...editValues.lastNote];
+                              updated[idx].text = e.target.value;
+                              setEditValues((prev) => ({ ...prev, lastNote: updated }));
+                            }}
+                          />
+                          <button
+                            className="text-green-600 text-xs mr-2"
+                            onClick={() => {
+                              const updated = [...editValues.lastNote];
+                              updated[idx].editing = false;
+                              updated[idx].timestamp = `${new Date().toLocaleString("vi-VN")} (đã sửa)`;
+                              setEditValues((prev) => ({ ...prev, lastNote: updated }));
+                            }}
+                          >
+                            ✔ Lưu
+                          </button>
+                          <button
+                            className="text-gray-500 text-xs"
+                            onClick={() => {
+                              const updated = [...editValues.lastNote];
+                              updated[idx].editing = false;
+                              setEditValues((prev) => ({ ...prev, lastNote: updated }));
+                            }}
+                          >
+                            ✘ Huỷ
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-gray-800 font-medium">{note.text}</div>
+                          <div className="text-xs text-gray-500">{note.timestamp}</div>
+                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition text-xs flex gap-2">
+                            <button
+                              className="text-blue-600"
+                              onClick={() => {
+                                const updated = [...editValues.lastNote];
+                                updated[idx].editing = true;
+                                setEditValues((prev) => ({ ...prev, lastNote: updated }));
+                              }}
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              className="text-red-600"
+                              onClick={() => {
+                                const updated = [...editValues.lastNote];
+                                updated.splice(idx, 1);
+                                setEditValues((prev) => ({ ...prev, lastNote: updated }));
+                              }}
+                            >
+                              Xoá
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                  }
+                </div>
               ) : f.isDate ? (
                 <input
                   type="date"
@@ -289,12 +416,22 @@ const KioskPlanDetail = () => {
                   ))}
                 </select>
               ) : (
-                <textarea
-                  rows={f.multiline ? 3 : 1}
-                  className="w-full text-sm border rounded p-1"
-                  value={editValues[f.key] || ""}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
-                />
+                f.key === "quantity" ? (
+                  <input
+                    type="number"
+                    className="w-full text-sm border rounded p-1"
+                    value={editValues[f.key] || ""}
+                    onChange={(e) => handleChange(f.key, e.target.value)}
+                  />
+                ) : (
+                  <textarea
+                    rows={f.multiline ? 3 : 1}
+                    className="w-full text-sm border rounded p-1"
+                    value={editValues[f.key] || ""}
+                    onChange={(e) => handleChange(f.key, e.target.value)}
+                  />
+                )
+
               )
             ) : (
               f.key === "personInCharge" ? (
@@ -303,10 +440,7 @@ const KioskPlanDetail = () => {
                     plan.personInCharge.map((email) => {
                       const user = allUsers.find((u) => u.email === email);
                       return (
-                        <div
-                          key={email}
-                          className="flex items-center gap-3 border p-2 rounded bg-gray-50"
-                        >
+                        <div key={email} className="flex items-center gap-3 border p-2 rounded bg-gray-50">
                           <img
                             src={user?.avatar || `https://i.pravatar.cc/40?u=${email}`}
                             className="w-8 h-8 rounded-full"
@@ -323,10 +457,25 @@ const KioskPlanDetail = () => {
                     <div className="text-sm italic text-gray-500">Không có người phụ trách</div>
                   )}
                 </div>
+              ) : f.key === "lastNote" ? (
+                <div className="flex flex-col gap-2 text-sm">
+                  {(Array.isArray(plan.lastNote) && plan.lastNote.length > 0) ? (
+                    plan.lastNote.map((note, idx) => (
+                      <div key={idx} className="bg-gray-50 border p-2 rounded">
+                        <div className="text-gray-800 font-medium">{note.text}</div>
+                        <div className="text-xs text-gray-500">{note.timestamp}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 italic">Không có ghi chú nào</div>
+                  )}
+                </div>
               ) : f.isDate ? (
                 <div className="text-sm">{formatDate(plan[f.key])}</div>
               ) : (
-                <div className={"text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")}>{plan[f.key] || "-"}</div>
+                <div className={"text-sm " + (f.multiline ? "whitespace-pre-wrap break-words" : "")}>
+                  {plan[f.key] || "-"}
+                </div>
               )
             )}
           </div>

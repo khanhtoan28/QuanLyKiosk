@@ -80,16 +80,32 @@ export const createPlan = async (req, res) => {
 export const updatePlan = async (req, res) => {
   try {
     const payload = normalizePlanDates(req.body);
-    const updated = await KioskPlan.findByIdAndUpdate(
-      req.params.id,
-      payload,
-      { new: true }
-    );
-    res.json(updated);
+
+    const plan = await KioskPlan.findById(req.params.id);
+    if (!plan) return res.status(404).json({ error: "Plan not found" });
+
+    // ✅ Xử lý lastNote trước
+    if (Array.isArray(payload.lastNote)) {
+      plan.lastNote = payload.lastNote.map(note => ({
+        text: note.text || "",
+        timestamp: note.timestamp || new Date().toLocaleString("vi-VN"),
+      }));
+    }
+
+    // ✅ Cập nhật các trường khác
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key !== "lastNote") {
+        plan[key] = value;
+      }
+    });
+
+    await plan.save();
+    res.json(plan);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const deletePlan = async (req, res) => {
   try {
@@ -107,7 +123,16 @@ export const importExcel = async (req, res) => {
     const mapped = rawRows.map((r, index) => ({
       stt: r["STT"] ?? r.stt ?? "",
       hospitalName: r["Tên bệnh viện"] ?? r.hospitalName ?? "",
-      lastNote: r["Ghi chú làm việc gần nhất"] ?? r.lastNote ?? "",
+
+      // ✅ CHUYỂN "lastNote" về dạng mảng [{ text, timestamp }]
+      lastNote: (r["Ghi chú làm việc gần nhất"] ?? r.lastNote ?? "")
+        .split(/\n+/)
+        .filter(Boolean)
+        .map(text => ({
+          text: text.trim(),
+          timestamp: new Date().toLocaleString("vi-VN")
+        })),
+
       additionalRequest: r["Yêu cầu thêm của bệnh viện"] ?? r.additionalRequest ?? "",
       requestDate: toISODate(r["Ngày phát sinh yêu cầu"] ?? r.requestDate),
       deadline: toISODate(r["Deadline"] ?? r.deadline),
@@ -143,3 +168,4 @@ export const importExcel = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+

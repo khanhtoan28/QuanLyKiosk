@@ -30,6 +30,8 @@ const KioskPlanTable = ({ data, onDelete }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedPersons, setSelectedPersons] = useState([]);
+  const [selectedPriorities, setSelectedPriorities] = useState([]);
+  const [priorityFilterOpen, setPriorityFilterOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const itemsPerPage = 10;
   const navigate = useNavigate();
@@ -51,8 +53,13 @@ const KioskPlanTable = ({ data, onDelete }) => {
         selectedPersons.length > 0
           ? plan.personInCharge?.some((email) => selectedPersons.includes(email))
           : true
+      )
+      .filter((plan) =>
+        selectedPriorities.length > 0
+          ? selectedPriorities.includes(plan.priorityLevel)
+          : true
       );
-  }, [sortedData, searchTerm, selectedPersons]);
+  }, [sortedData, searchTerm, selectedPersons, selectedPriorities]);
 
   const uniquePersons = useMemo(() => {
     const emails = new Set();
@@ -68,6 +75,9 @@ const KioskPlanTable = ({ data, onDelete }) => {
       };
     });
   }, [data, allUsers]);
+
+
+  const uniquePriorities = dropdownOptions?.priorityLevel || [];
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
@@ -162,15 +172,32 @@ const KioskPlanTable = ({ data, onDelete }) => {
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/users/all")
-      .then(res => setAllUsers(res.data?.data || []))
+      .then(res => {
+        console.log("Danh sách users:", res.data?.data); // 👈 thêm dòng này để kiểm tra console
+        setAllUsers(res.data?.data || []);
+      })
       .catch(err => console.error("Lỗi load user:", err));
+  }, []);
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/dropdown-options")
+      .then(res => {
+        console.log("📥 dropdownOptions:", res.data); // Debug nếu cần
+        setDropdownOptions(res.data || {});
+      })
+      .catch(err => console.error("Lỗi load dropdownOptions:", err));
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       const filterElement = document.getElementById("filter-dropdown");
+      const priorityElement = document.getElementById("priority-filter-dropdown");
+
       if (filterElement && !filterElement.contains(e.target)) {
         setFilterOpen(false);
+      }
+      if (priorityElement && !priorityElement.contains(e.target)) {
+        setPriorityFilterOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -229,7 +256,59 @@ const KioskPlanTable = ({ data, onDelete }) => {
             <th className="p-2 border w-[50px] text-center">STT</th>
             <th className="p-2 border w-[250px] text-center">Tên bệnh viện</th>
             <th className="p-2 border w-[100px] text-center">Deadline</th>
-            <th className="p-2 border w-[100px] text-center">Ưu tiên</th>
+            <th className="p-2 border w-[100px] text-center relative">
+              <div className="flex justify-center items-center gap-1">
+                <span>Ưu tiên</span>
+                <button
+                  onClick={() => setPriorityFilterOpen(!priorityFilterOpen)}
+                  className="ml-1"
+                >
+                  <Filter size={14} />
+                </button>
+
+                {priorityFilterOpen && (
+                  <div
+                    id="priority-filter-dropdown"
+                    className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border shadow rounded text-left"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ul className="max-h-64 overflow-y-auto">
+                      {uniquePriorities.length === 0 ? (
+                        <li className="px-3 py-2 text-gray-500 italic">Không có giá trị</li>
+                      ) : (
+                        uniquePriorities.map((priority) => (
+                          <li
+                            key={priority}
+                            onClick={() => {
+                              setSelectedPriorities((prev) =>
+                                prev.includes(priority)
+                                  ? prev.filter((p) => p !== priority)
+                                  : [...prev, priority]
+                              );
+                            }}
+                            className="px-3 py-2 hover:bg-gray-100 flex justify-between items-center cursor-pointer"
+                          >
+                            <span>{priority}</span>
+                            {selectedPriorities.includes(priority) && <Check size={16} />}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                    <div className="border-t px-3 py-2 text-sm text-right">
+                      <button
+                        onClick={() => {
+                          setSelectedPriorities([]);
+                          setPriorityFilterOpen(false);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Bỏ lọc
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </th>
             <th className="p-2 border w-[200px] text-center">Trạng thái Dev</th>
             <th className="p-2 border w-[200px] text-center relative">
               <div className="flex justify-center items-center gap-1">
@@ -244,28 +323,43 @@ const KioskPlanTable = ({ data, onDelete }) => {
                 {filterOpen && (
                   <div
                     id="filter-dropdown"
-                    className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border shadow rounded text-left"
+                    className="absolute right-0 top-full mt-2 z-50 w bg-white border shadow rounded text-left"
                     onClick={(e) => e.stopPropagation()}
                   >
-
                     <ul className="max-h-64 overflow-y-auto">
-                      {uniquePersons.map((person) => (
-                        <li
-                          key={person.email}
-                          onClick={() => {
-                            setSelectedPersons((prev) =>
-                              prev.includes(person.email)
-                                ? prev.filter((e) => e !== person.email)
-                                : [...prev, person.email]
-                            );
-                          }}
-                          className="px-3 py-2 hover:bg-gray-100 flex justify-between items-center cursor-pointer"
-                        >
-                          <span>{person.name}</span>
-                          {selectedPersons.includes(person.email) && <Check size={16} />}
-                        </li>
-                      ))}
+                      {uniquePersons.length === 0 ? (
+                        <li className="px-3 py-2 italic text-gray-500">Không có giá trị</li>
+                      ) : (
+                        uniquePersons.map((person) => (
+                          <li
+                            key={person.email}
+                            onClick={() => {
+                              setSelectedPersons((prev) =>
+                                prev.includes(person.email)
+                                  ? prev.filter((e) => e !== person.email)
+                                  : [...prev, person.email]
+                              );
+                            }}
+                            className="px-3 py-2 hover:bg-gray-100 flex items-center justify-between cursor-pointer gap-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={person.avatar}
+                                className="w-6 h-6 rounded-full"
+                                alt="avatar"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm">{person.name}</span>
+                                <span className="text-xs text-gray-500">{person.email}</span>
+                              </div>
+                            </div>
+                            {selectedPersons.includes(person.email) && <Check size={16} />}
+                          </li>
+                        ))
+                      )}
                     </ul>
+
+
                     <div className="border-t px-3 py-2 text-sm text-right">
                       <button
                         onClick={() => {
@@ -357,7 +451,7 @@ const KioskPlanTable = ({ data, onDelete }) => {
 
       {renderPagination()}
 
-       {showModal && (
+      {showModal && (
         <EditDropdownModal
           onClose={() => setShowModal(false)}
           onSave={(options) => {

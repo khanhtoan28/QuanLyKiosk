@@ -106,66 +106,64 @@ const EditDropdownModal = ({ onClose }) => {
         </div>
 
         <div className="h-[60vh] overflow-y-auto space-y-6 pr-2">
-          {Object.entries(options)
-            .filter(([key]) => key !== "personInCharge")
-            .map(([key, values]) => (
+  {Object.entries(options).map(([key, values]) => (
+    <div key={key}>
+      <div className="font-semibold mb-1">{displayNames[key] || key}</div>
 
-              <div key={key}>
-                <div className="font-semibold mb-1">{displayNames[key] || key}</div>
+      {key === "personInCharge" ? (
+        (values || []).map((val, idx) => (
+          <div key={idx} className="flex gap-2 mb-1 items-center">
+            <select
+              value={val?._id || ""}
+              onChange={(e) => handleUserSelect(key, idx, e.target.value)}
+              className="border px-2 py-1 rounded w-full text-sm"
+            >
+              <option value="">-- Chọn người phụ trách --</option>
+              {users.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.name || u.email} ({u.email})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => handleRemove(key, idx)}
+              className="text-red-500 text-sm"
+            >
+              Xoá
+            </button>
+          </div>
+        ))
+      ) : (
+        (values || []).map((val, idx) => (
+          <div key={idx} className="flex gap-2 mb-1">
+            <input
+              value={val}
+              onChange={(e) => handleChange(key, idx, e.target.value)}
+              className="border px-2 py-1 rounded w-full text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => handleRemove(key, idx)}
+              className="text-red-500 text-sm"
+            >
+              Xoá
+            </button>
+          </div>
+        ))
+      )}
 
-                {key === "personInCharge" ? (
-                  values.map((val, idx) => (
-                    <div key={idx} className="flex gap-2 mb-1 items-center">
-                      <select
-                        value={val?._id || ""}
-                        onChange={(e) => handleUserSelect(key, idx, e.target.value)}
-                        className="border px-2 py-1 rounded w-full text-sm"
-                      >
-                        <option value="">-- Chọn người phụ trách --</option>
-                        {users.map((u) => (
-                          <option key={u._id} value={u._id}>
-                            {u.name || u.email} ({u.email})
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(key, idx)}
-                        className="text-red-500 text-sm"
-                      >
-                        Xoá
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  values.map((val, idx) => (
-                    <div key={idx} className="flex gap-2 mb-1">
-                      <input
-                        value={val}
-                        onChange={(e) => handleChange(key, idx, e.target.value)}
-                        className="border px-2 py-1 rounded w-full text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(key, idx)}
-                        className="text-red-500 text-sm"
-                      >
-                        Xoá
-                      </button>
-                    </div>
-                  ))
-                )}
+      <button
+        type="button"
+        onClick={() => handleAdd(key)}
+        className="text-blue-600 text-sm mt-1"
+      >
+        + Thêm giá trị
+      </button>
+    </div>
+  ))}
+</div>
 
-                <button
-                  type="button"
-                  onClick={() => handleAdd(key)}
-                  className="text-blue-600 text-sm mt-1"
-                >
-                  + Thêm giá trị
-                </button>
-              </div>
-            ))}
-        </div>
 
         <div className="mt-4 text-right">
           <button

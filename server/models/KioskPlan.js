@@ -4,7 +4,15 @@ import mongoose from "mongoose";
 const kioskPlanSchema = new mongoose.Schema({
   stt: String,
   hospitalName: { type: String, required: true },
-  lastNote: String,
+  lastNote: {
+    type: [
+      {
+        text: String,
+        timestamp: String,
+      }
+    ],
+    default: [],
+  },
   additionalRequest: String,
   requestDate: String,
   deadline: String,

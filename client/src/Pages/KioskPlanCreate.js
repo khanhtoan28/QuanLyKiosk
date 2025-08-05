@@ -1,3 +1,5 @@
+// 📁 KioskPlanCreate.jsx
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -9,287 +11,373 @@ import { format, parseISO } from "date-fns";
 import axios from "axios";
 
 const fieldLabels = {
-    hospitalName: "Tên bệnh viện",
-    lastNote: "Ghi chú làm việc gần nhất",
-    additionalRequest: "Yêu cầu thêm của bệnh viện",
-    requestDate: "Ngày phát sinh yêu cầu",
-    deadline: "Deadline",
-    deliveryDate: "Ngày chuyển nghiệm thu",
-    quantity: "Số lượng",
-    cccdReaderType: "Loại đầu đọc CCCD",
-    deviceType: "Loại thiết bị",
-    priorityLevel: "Mức độ ưu tiên",
-    personInCharge: "Người phụ trách",
-    devStatus: "Trạng thái dev",
-    hopStatus: "Trạng thái làm việc với bệnh viện",
-    requestStatus: "Trạng thái yêu cầu",
-    handler: "Người xử lý",
-    his: "HIS",
-    urlPort: "URL Port",
-    bhxhAccount: "Tài khoản BHXH",
+  hospitalName: "Tên bệnh viện",
+  lastNote: "Ghi chú làm việc gần nhất",
+  additionalRequest: "Yêu cầu thêm của bệnh viện",
+  requestDate: "Ngày phát sinh yêu cầu",
+  deadline: "Deadline",
+  deliveryDate: "Ngày chuyển nghiệm thu",
+  quantity: "Số lượng",
+  cccdReaderType: "Loại đầu đọc CCCD",
+  deviceType: "Loại thiết bị",
+  priorityLevel: "Mức độ ưu tiên",
+  personInCharge: "Người phụ trách",
+  devStatus: "Trạng thái dev",
+  hopStatus: "Trạng thái làm việc với bệnh viện",
+  requestStatus: "Trạng thái yêu cầu",
+  handler: "Người xử lý",
+  his: "HIS",
+  urlPort: "URL Port",
+  bhxhAccount: "Tài khoản BHXH",
 };
 
 const dateFields = ["requestDate", "deadline", "deliveryDate"];
 
 const KioskPlanCreate = () => {
-    const navigate = useNavigate();
-    const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
-    const [searchInput, setSearchInput] = useState({});
-    const [recentEmails, setRecentEmails] = useState(() => JSON.parse(localStorage.getItem("recentEmails") || "[]"));
-    const [allUsers, setAllUsers] = useState([]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [form, setForm] = useState(
-        Object.fromEntries(Object.keys(fieldLabels).map((key) => [key, ""]))
-    );
-    const [selectOptions, setSelectOptions] = useState({});
+  const navigate = useNavigate();
+  const [personInChargeEmails, setPersonInChargeEmails] = useState([""]);
+  const [searchInput, setSearchInput] = useState({});
+  const [recentEmails, setRecentEmails] = useState(() =>
+    JSON.parse(localStorage.getItem("recentEmails") || "[]")
+  );
+  const [allUsers, setAllUsers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [noteList, setNoteList] = useState([]);
+  const [form, setForm] = useState(
+    Object.fromEntries(Object.keys(fieldLabels).map((key) => [key, ""]))
+  );
+  const [selectOptions, setSelectOptions] = useState({});
 
-    useEffect(() => {
-        axios.get("http://localhost:5000/api/dropdown-options").then((res) => {
-            setSelectOptions(res.data);
-        });
-    }, []);
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/dropdown-options")
+      .then((res) => setSelectOptions(res.data));
+  }, []);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
-    };
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-    const handleDateChange = (name, date) => {
-        const iso = date ? format(date, "yyyy-MM-dd") : "";
-        setForm((prev) => ({ ...prev, [name]: iso }));
-    };
+  const handleDateChange = (name, date) => {
+    const iso = date ? format(date, "yyyy-MM-dd") : "";
+    setForm((prev) => ({ ...prev, [name]: iso }));
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (isSubmitting) return; // chặn nếu đang gửi
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
 
-        setIsSubmitting(true);
+    setIsSubmitting(true);
 
-        if (!form.hospitalName.trim()) {
-            Swal.fire("Thiếu thông tin", "Vui lòng nhập Tên bệnh viện.", "warning");
-            setIsSubmitting(false);
-            return;
+    if (!form.hospitalName.trim()) {
+      Swal.fire("Thiếu thông tin", "Vui lòng nhập Tên bệnh viện.", "warning");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const checkedUsers = [];
+    const invalidEmails = [];
+
+    for (const emailRaw of personInChargeEmails) {
+      const email = (emailRaw || "").trim();
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!isValidEmail) continue;
+
+      try {
+        const res = await axios.get(
+          `http://localhost:5000/api/users?email=${encodeURIComponent(email)}`
+        );
+        const user = res.data?.data;
+
+        if (!user) {
+          invalidEmails.push(email);
+          continue;
         }
 
-        const checkedUsers = [];
-        const invalidEmails = [];
+        checkedUsers.push(user);
+      } catch (err) {
+        console.error("❌ Lỗi khi kiểm tra user:", err);
+        invalidEmails.push(email);
+      }
+    }
 
-        for (const emailRaw of personInChargeEmails) {
-            const email = (emailRaw || "").trim();
+    if (invalidEmails.length > 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Email không hợp lệ",
+        html: `Các email sau không tồn tại trong hệ thống:<br><b>${invalidEmails.join(
+          "<br>"
+        )}</b>`,
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
-            // 🛡️ Chặn tất cả rỗng/sai format
-            const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            if (!isValidEmail) continue;
+    try {
+      await Promise.all(
+        checkedUsers.map((user) =>
+          axios.post("http://localhost:5000/api/notifications/send", {
+            to: user.email,
+            subject: "Bạn được giao công việc mới",
+            message: `Chào ${user.name || user.email}, bạn đã được phân công phụ trách một kế hoạch kiosk mới.`,
+          })
+        )
+      );
 
-            try {
-                const res = await axios.get(`http://localhost:5000/api/users?email=${encodeURIComponent(email)}`);
-                const user = res.data?.data;
+      await createPlan({
+        ...form,
+        lastNote: noteList,
+        personInCharge: checkedUsers.map((u) => u.email),
+      });
 
-                if (!user) {
-                    invalidEmails.push(email);
-                    continue;
-                }
+      Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
+      navigate("/kiosk-plans");
+    } catch (err) {
+      console.error(
+        "Lỗi khi tạo kế hoạch hoặc gửi mail:",
+        err.response?.data || err.message
+      );
+      Swal.fire("Lỗi", "Tạo kế hoạch thất bại.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                checkedUsers.push(user);
-            } catch (err) {
-                console.error("❌ Lỗi khi kiểm tra user:", err);
-                invalidEmails.push(email);
-            }
-        }
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/users/all")
+      .then((res) => setAllUsers(res.data?.data || []))
+      .catch(() => {});
+  }, []);
 
-        if (invalidEmails.length > 0) {
-            Swal.fire({
-                icon: "warning",
-                title: "Email không hợp lệ",
-                html: `Các email sau không tồn tại trong hệ thống:<br><b>${invalidEmails.join("<br>")}</b>`,
-            });
-            setIsSubmitting(false);
-            return;
-        }
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-xl font-semibold mb-4">Tạo mới kế hoạch kiosk</h1>
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+        {Object.entries(form).map(([key, value]) =>
+          key === "lastNote" ? (
+            <div key={key} className="col-span-2">
+              <label className="text-sm text-gray-600 mb-1">
+                {fieldLabels[key]}
+              </label>
+              <textarea
+                rows={3}
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+                placeholder="Nhập ghi chú mới..."
+              />
+              <button
+                type="button"
+                className="text-blue-600 text-sm mt-1"
+                onClick={() => {
+                  if (!noteInput.trim()) return;
+                  setNoteList([
+                    {
+                      text: noteInput.trim(),
+                      timestamp: new Date().toLocaleString("vi-VN"),
+                    },
+                    ...noteList,
+                  ]);
+                  setNoteInput("");
+                }}
+              >
+                + Thêm ghi chú
+              </button>
 
-        try {
-            await Promise.all(
-                checkedUsers.map((user) =>
-                    axios.post("http://localhost:5000/api/notifications/send", {
-                        to: user.email,
-                        subject: "Bạn được giao công việc mới",
-                        message: `Chào ${user.name || user.email}, bạn đã được phân công phụ trách một kế hoạch kiosk mới.`,
-                    })
-                )
-            );
-
-            await createPlan({
-                ...form,
-                personInCharge: checkedUsers.map((u) => u.email),
-            });
-
-            Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
-            navigate("/kiosk-plans");
-        } catch (err) {
-            console.error("Lỗi khi tạo kế hoạch hoặc gửi mail:", err.response?.data || err.message);
-            Swal.fire("Lỗi", "Tạo kế hoạch thất bại.", "error");
-        } finally {
-            setIsSubmitting(false); // đảm bảo luôn reset trạng thái
-        }
-    };
-
-    useEffect(() => {
-        axios.get("http://localhost:5000/api/users/all").then((res) => {
-            setAllUsers(res.data?.data || []);
-        }).catch(() => { });
-    }, []);
-
-    return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <h1 className="text-xl font-semibold mb-4">Tạo mới kế hoạch kiosk</h1>
-            <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-                {Object.entries(form).map(([key, value]) => (
-                    <div key={key} className="flex flex-col">
-                        <label className="text-sm text-gray-600 mb-1">
-                            {fieldLabels[key] || key}
-                        </label>
-
-                        {key === "personInCharge" ? (
-                            <div className="flex flex-col gap-2">
-                                {personInChargeEmails.map((email, idx) => {
-                                    const input = searchInput[idx] || "";
-                                    const suggestions = [
-                                        ...recentEmails
-                                            .map((e) => allUsers.find((u) => u.email === e))
-                                            .filter(Boolean),
-                                        ...allUsers.filter(
-                                            (u) =>
-                                                u.email.toLowerCase().includes(input.toLowerCase()) &&
-                                                !recentEmails.includes(u.email)
-                                        ),
-                                    ];
-
-                                    return (
-                                        <div key={idx} className="relative">
-                                            <input
-                                                type="text"
-                                                value={email}
-                                                onChange={(e) => {
-                                                    const updated = [...personInChargeEmails];
-                                                    updated[idx] = e.target.value;
-                                                    setPersonInChargeEmails(updated);
-                                                    setSearchInput((prev) => ({ ...prev, [idx]: e.target.value }));
-                                                }}
-                                                placeholder="Nhập email người phụ trách"
-                                                className="border p-2 rounded text-sm w-full"
-                                                autoComplete="off"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="absolute right-2 top-2 text-red-500 text-sm"
-                                                onClick={() => {
-                                                    const updated = [...personInChargeEmails];
-                                                    updated.splice(idx, 1);
-                                                    setPersonInChargeEmails(updated);
-                                                }}
-                                            >
-                                                Xoá
-                                            </button>
-
-                                            {input && (
-                                                <div className="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-60 overflow-auto">
-                                                    {suggestions.map((user) => (
-                                                        <div
-                                                            key={user._id}
-                                                            className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                                            onClick={() => {
-                                                                const updated = [...personInChargeEmails];
-                                                                updated[idx] = user.email;
-                                                                setPersonInChargeEmails(updated);
-                                                                setSearchInput((prev) => ({ ...prev, [idx]: "" }));
-
-                                                                const updatedRecent = [user.email, ...recentEmails.filter((e) => e !== user.email)].slice(0, 5);
-                                                                setRecentEmails(updatedRecent);
-                                                                localStorage.setItem("recentEmails", JSON.stringify(updatedRecent));
-                                                            }}
-                                                        >
-                                                            <img
-                                                                src={user.avatar || `https://i.pravatar.cc/40?u=${user.email}`}
-                                                                className="w-8 h-8 rounded-full mr-3"
-                                                                alt=""
-                                                            />
-                                                            <div>
-                                                                <div className="font-medium">{user.name || "Không tên"}</div>
-                                                                <div className="text-sm text-gray-500">{user.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {suggestions.length === 0 && (
-                                                        <div className="px-3 py-2 text-sm text-gray-500 italic">Không có gợi ý</div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                                <button
-                                    type="button"
-                                    className="text-blue-600 text-sm mt-1"
-                                    onClick={() => setPersonInChargeEmails([...personInChargeEmails, ""])}
-                                >
-                                    + Thêm người phụ trách
-                                </button>
-                            </div>
-                        ) : dateFields.includes(key) ? (
-                            <DatePicker
-                                selected={value ? parseISO(value) : null}
-                                onChange={(date) => handleDateChange(key, date)}
-                                dateFormat="dd-MM-yyyy"
-                                locale={vi}
-                                placeholderText="Chọn ngày"
-                                className="border p-2 rounded text-sm"
-                            />
-                        ) : selectOptions[key] ? (
-                            <select
-                                name={key}
-                                value={value}
-                                onChange={handleChange}
-                                className="border p-2 rounded text-sm"
-                            >
-                                <option value="">-- Chọn --</option>
-                                {selectOptions[key].map((option) => (
-                                    <option key={option} value={option}>
-                                        {option}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <input
-                                type={key === "quantity" ? "number" : "text"}
-                                name={key}
-                                value={value}
-                                onChange={handleChange}
-                                className="border p-2 rounded text-sm"
-                            />
-                        )}
-                    </div>
+              <div className="mt-3 space-y-2">
+                {noteList.map((note, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-gray-50 border px-3 py-2 rounded text-sm"
+                  >
+                    <div className="text-gray-800 font-medium">{note.content}</div>
+                    <div className="text-xs text-gray-500">{note.time}</div>
+                  </div>
                 ))}
+              </div>
+            </div>
+          ) : (
+            <div key={key} className="flex flex-col">
+              <label className="text-sm text-gray-600 mb-1">
+                {fieldLabels[key]}
+              </label>
 
-                <div className="col-span-2 mt-4 flex gap-2">
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className={`px-4 py-2 rounded text-white ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-                    >
-                        {isSubmitting ? "Đang lưu..." : "Lưu kế hoạch"}
-                    </button>
+              {key === "personInCharge" ? (
+                <div className="flex flex-col gap-2">
+                  {personInChargeEmails.map((email, idx) => {
+                    const input = searchInput[idx] || "";
+                    const suggestions = [
+                      ...recentEmails
+                        .map((e) => allUsers.find((u) => u.email === e))
+                        .filter(Boolean),
+                      ...allUsers.filter(
+                        (u) =>
+                          u.email
+                            .toLowerCase()
+                            .includes(input.toLowerCase()) &&
+                          !recentEmails.includes(u.email)
+                      ),
+                    ];
 
-                    <button
-                        type="button"
-                        onClick={() => navigate("/kiosk-plans")}
-                        className="bg-gray-300 px-4 py-2 rounded"
-                    >
-                        Huỷ
-                    </button>
+                    return (
+                      <div key={idx} className="relative">
+                        <input
+                          type="text"
+                          value={email}
+                          onChange={(e) => {
+                            const updated = [...personInChargeEmails];
+                            updated[idx] = e.target.value;
+                            setPersonInChargeEmails(updated);
+                            setSearchInput((prev) => ({
+                              ...prev,
+                              [idx]: e.target.value,
+                            }));
+                          }}
+                          placeholder="Nhập email người phụ trách"
+                          className="border p-2 rounded text-sm w-full"
+                          autoComplete="off"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-2 text-red-500 text-sm"
+                          onClick={() => {
+                            const updated = [...personInChargeEmails];
+                            updated.splice(idx, 1);
+                            setPersonInChargeEmails(updated);
+                          }}
+                        >
+                          Xoá
+                        </button>
+
+                        {input && (
+                          <div className="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-60 overflow-auto">
+                            {suggestions.map((user) => (
+                              <div
+                                key={user._id}
+                                className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  const updated = [...personInChargeEmails];
+                                  updated[idx] = user.email;
+                                  setPersonInChargeEmails(updated);
+                                  setSearchInput((prev) => ({
+                                    ...prev,
+                                    [idx]: "",
+                                  }));
+
+                                  const updatedRecent = [
+                                    user.email,
+                                    ...recentEmails.filter(
+                                      (e) => e !== user.email
+                                    ),
+                                  ].slice(0, 5);
+                                  setRecentEmails(updatedRecent);
+                                  localStorage.setItem(
+                                    "recentEmails",
+                                    JSON.stringify(updatedRecent)
+                                  );
+                                }}
+                              >
+                                <img
+                                  src={
+                                    user.avatar ||
+                                    `https://i.pravatar.cc/40?u=${user.email}`
+                                  }
+                                  className="w-8 h-8 rounded-full mr-3"
+                                  alt=""
+                                />
+                                <div>
+                                  <div className="font-medium">
+                                    {user.name || "Không tên"}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {user.email}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {suggestions.length === 0 && (
+                              <div className="px-3 py-2 text-sm text-gray-500 italic">
+                                Không có gợi ý
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className="text-blue-600 text-sm mt-1"
+                    onClick={() =>
+                      setPersonInChargeEmails([...personInChargeEmails, ""])
+                    }
+                  >
+                    + Thêm người phụ trách
+                  </button>
                 </div>
-            </form>
+              ) : dateFields.includes(key) ? (
+                <DatePicker
+                  selected={value ? parseISO(value) : null}
+                  onChange={(date) => handleDateChange(key, date)}
+                  dateFormat="dd-MM-yyyy"
+                  locale={vi}
+                  placeholderText="Chọn ngày"
+                  className="border p-2 rounded text-sm"
+                />
+              ) : selectOptions[key] ? (
+                <select
+                  name={key}
+                  value={value}
+                  onChange={handleChange}
+                  className="border p-2 rounded text-sm"
+                >
+                  <option value="">-- Chọn --</option>
+                  {selectOptions[key].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={key === "quantity" ? "number" : "text"}
+                  name={key}
+                  value={value}
+                  onChange={handleChange}
+                  className="border p-2 rounded text-sm"
+                />
+              )}
+            </div>
+          )
+        )}
+
+        <div className="col-span-2 mt-4 flex gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`px-4 py-2 rounded text-white ${
+              isSubmitting
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {isSubmitting ? "Đang lưu..." : "Lưu kế hoạch"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/kiosk-plans")}
+            className="bg-gray-300 px-4 py-2 rounded"
+          >
+            Huỷ
+          </button>
         </div>
-    );
+      </form>
+    </div>
+  );
 };
 
 export default KioskPlanCreate;
