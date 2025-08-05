@@ -125,12 +125,24 @@ const KioskPlanCreate = () => {
           })
         )
       );
+      // Tự thêm ghi chú cuối cùng nếu người dùng chưa bấm "+ Thêm ghi chú"
+let notesToSave = [...noteList];
+if (noteInput.trim()) {
+  notesToSave = [
+    {
+      text: noteInput.trim(),
+      timestamp: new Date().toLocaleString("vi-VN"),
+    },
+    ...noteList,
+  ];
+}
 
-      await createPlan({
-        ...form,
-        lastNote: noteList,
-        personInCharge: checkedUsers.map((u) => u.email),
-      });
+await createPlan({
+  ...form,
+  lastNote: notesToSave, // ✅ dùng biến đã xử lý
+  personInCharge: checkedUsers.map((u) => u.email),
+});
+
 
       Swal.fire("Thành công", "Đã tạo kế hoạch mới.", "success");
       navigate("/kiosk-plans");
@@ -193,8 +205,8 @@ const KioskPlanCreate = () => {
                     key={idx}
                     className="bg-gray-50 border px-3 py-2 rounded text-sm"
                   >
-                    <div className="text-gray-800 font-medium">{note.content}</div>
-                    <div className="text-xs text-gray-500">{note.time}</div>
+                    <div className="text-gray-800 font-medium">{note.text}</div>
+                    <div className="text-xs text-gray-500">{note.timestamp}</div>
                   </div>
                 ))}
               </div>
