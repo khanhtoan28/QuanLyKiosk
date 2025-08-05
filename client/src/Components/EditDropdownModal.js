@@ -23,7 +23,7 @@ const EditDropdownModal = ({ onClose }) => {
         axios.get("http://localhost:5000/api/users")
       ]);
       setOptions(optRes.data);
-      setUsers(userRes.data);
+      setUsers(userRes.data?.data);
       setLoading(false);
     };
     fetchData();
@@ -63,10 +63,35 @@ const EditDropdownModal = ({ onClose }) => {
   };
 
   const handleSave = async () => {
-    await axios.put("http://localhost:5000/api/dropdown-options", { options });
-    onClose();
-    window.location.reload();
+    const cleanedOptions = {};
+
+    for (const key in options) {
+      const rawValues = options[key];
+
+      if (key === "personInCharge") {
+        cleanedOptions[key] = (rawValues || [])
+          .filter((u) => u && typeof u === "object" && u.email)
+          .map((u) => u.email);
+      } else {
+        cleanedOptions[key] = (rawValues || [])
+          .filter((val) => typeof val === "string" && val.trim() !== "")
+          .map((val) => val.trim());
+      }
+    }
+
+    try {
+      await axios.put("http://localhost:5000/api/dropdown-options", {
+        options: cleanedOptions,
+      });
+
+      onClose();
+      window.location.reload();
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu dropdown:", err.response?.data || err.message);
+      alert("Lỗi khi lưu dropdown: " + (err.response?.data?.error || err.message));
+    }
   };
+
 
   if (loading) return null;
 
@@ -81,62 +106,65 @@ const EditDropdownModal = ({ onClose }) => {
         </div>
 
         <div className="h-[60vh] overflow-y-auto space-y-6 pr-2">
-          {Object.entries(options).map(([key, values]) => (
-            <div key={key}>
-              <div className="font-semibold mb-1">{displayNames[key] || key}</div>
+          {Object.entries(options)
+            .filter(([key]) => key !== "personInCharge")
+            .map(([key, values]) => (
 
-              {key === "personInCharge" ? (
-                values.map((val, idx) => (
-                  <div key={idx} className="flex gap-2 mb-1 items-center">
-                    <select
-                      value={val?._id || ""}
-                      onChange={(e) => handleUserSelect(key, idx, e.target.value)}
-                      className="border px-2 py-1 rounded w-full text-sm"
-                    >
-                      <option value="">-- Chọn người phụ trách --</option>
-                      {users.map((u) => (
-                        <option key={u._id} value={u._id}>
-                          {u.name || u.email} ({u.email})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(key, idx)}
-                      className="text-red-500 text-sm"
-                    >
-                      Xoá
-                    </button>
-                  </div>
-                ))
-              ) : (
-                values.map((val, idx) => (
-                  <div key={idx} className="flex gap-2 mb-1">
-                    <input
-                      value={val}
-                      onChange={(e) => handleChange(key, idx, e.target.value)}
-                      className="border px-2 py-1 rounded w-full text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(key, idx)}
-                      className="text-red-500 text-sm"
-                    >
-                      Xoá
-                    </button>
-                  </div>
-                ))
-              )}
+              <div key={key}>
+                <div className="font-semibold mb-1">{displayNames[key] || key}</div>
 
-              <button
-                type="button"
-                onClick={() => handleAdd(key)}
-                className="text-blue-600 text-sm mt-1"
-              >
-                + Thêm giá trị
-              </button>
-            </div>
-          ))}
+                {key === "personInCharge" ? (
+                  values.map((val, idx) => (
+                    <div key={idx} className="flex gap-2 mb-1 items-center">
+                      <select
+                        value={val?._id || ""}
+                        onChange={(e) => handleUserSelect(key, idx, e.target.value)}
+                        className="border px-2 py-1 rounded w-full text-sm"
+                      >
+                        <option value="">-- Chọn người phụ trách --</option>
+                        {users.map((u) => (
+                          <option key={u._id} value={u._id}>
+                            {u.name || u.email} ({u.email})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(key, idx)}
+                        className="text-red-500 text-sm"
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  values.map((val, idx) => (
+                    <div key={idx} className="flex gap-2 mb-1">
+                      <input
+                        value={val}
+                        onChange={(e) => handleChange(key, idx, e.target.value)}
+                        className="border px-2 py-1 rounded w-full text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(key, idx)}
+                        className="text-red-500 text-sm"
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  ))
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleAdd(key)}
+                  className="text-blue-600 text-sm mt-1"
+                >
+                  + Thêm giá trị
+                </button>
+              </div>
+            ))}
         </div>
 
         <div className="mt-4 text-right">

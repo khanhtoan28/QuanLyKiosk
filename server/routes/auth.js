@@ -70,20 +70,22 @@ router.post("/login", async (req, res) => {
 router.get("/users", async (req, res) => {
   const email = req.query.email;
   try {
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Thiếu email" });
+    if (email) {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+      }
+      return res.status(200).json({ success: true, data: user });
+    } else {
+      const users = await User.find();
+      return res.status(200).json({ success: true, data: users });
     }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
-    }
-
-    res.status(200).json({ success: true, data: user }); // ✅ Trả về 1 user object
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+
 
 // GET /api/users/:id
 router.get("/users/:id", async (req, res) => {

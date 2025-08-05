@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
           "Gấp (2 - 3 ngày)",
           "Hỏa tốc (Trong ngày)",
         ],
-        hopStatus: ["Chưa tích hợp", "Đã tích hợp", "Nghiệm thu", "Hủy yêu cầu"],
+        hopStatus: ["Chưa tích hợp", "Đã tích hợp", "Chuyển nghiệm thu", "Hủy yêu cầu", "Đã nghiệm thu"],
         devStatus: ["Chờ dev build update", "Test thông api & chuyển dev"],
         requestStatus: ["Chưa xử lý", "Đã xử lý", "Đã xử lý xong", "Hủy yêu cầu"],
       },
@@ -40,6 +40,12 @@ router.get("/", async (req, res) => {
 router.put("/", async (req, res) => {
   const { options } = req.body;
 
+  console.log("📥 options nhận được:", JSON.stringify(options, null, 2)); // ← thêm dòng này
+
+  if (!options || typeof options !== "object") {
+    return res.status(400).json({ error: "Thiếu hoặc sai cấu trúc 'options'" });
+  }
+
   let existing = await DropdownOption.findOne();
   if (!existing) {
     existing = await DropdownOption.create({ options });
@@ -50,5 +56,7 @@ router.put("/", async (req, res) => {
 
   res.json({ message: "✅ Lưu thành công", options: existing.options });
 });
+
+
 
 export default router;

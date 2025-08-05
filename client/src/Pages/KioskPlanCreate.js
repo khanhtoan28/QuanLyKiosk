@@ -74,11 +74,15 @@ const KioskPlanCreate = () => {
         const checkedUsers = [];
         const invalidEmails = [];
 
-        for (const email of personInChargeEmails) {
-            if (!email || !email.includes("@")) continue;
+        for (const emailRaw of personInChargeEmails) {
+            const email = (emailRaw || "").trim();
+
+            // 🛡️ Chặn tất cả rỗng/sai format
+            const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            if (!isValidEmail) continue;
 
             try {
-                const res = await axios.get(`http://localhost:5000/api/users?email=${email}`);
+                const res = await axios.get(`http://localhost:5000/api/users?email=${encodeURIComponent(email)}`);
                 const user = res.data?.data;
 
                 if (!user) {

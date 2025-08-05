@@ -1,5 +1,3 @@
-// ✅ Giữ nguyên toàn bộ code của bạn và cập nhật thêm avatar + tên cho phần người phụ trách cả khi edit
-
 import React, { useEffect, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import Swal from "sweetalert2";
