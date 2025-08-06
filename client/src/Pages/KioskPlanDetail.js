@@ -69,23 +69,6 @@ const KioskPlanDetail = () => {
     setEditValues((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleEditNote = async (index, newText) => {
-    const updatedNotes = [...(editValues.lastNote || [])];
-    updatedNotes[index] = {
-      text: newText.trim(),
-      timestamp: new Date().toLocaleString("vi-VN") + " (đã sửa)",
-    };
-    setEditValues((prev) => ({ ...prev, lastNote: updatedNotes }));
-    await handleSave();
-  };
-
-  const handleDeleteNote = async (index) => {
-    const updatedNotes = [...(editValues.lastNote || [])];
-    updatedNotes.splice(index, 1);
-    setEditValues((prev) => ({ ...prev, lastNote: updatedNotes }));
-    await handleSave();
-  };
-
   const handleSave = async () => {
     const emailChecks = personInChargeEmails.map(email => {
       const trimmed = email.trim();

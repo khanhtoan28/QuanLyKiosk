@@ -173,7 +173,7 @@ const KioskPlanTable = ({ data, onDelete }) => {
   useEffect(() => {
     axios.get("http://localhost:5000/api/users/all")
       .then(res => {
-        console.log("Danh sách users:", res.data?.data); // 👈 thêm dòng này để kiểm tra console
+        console.log("Danh sách users:", res.data?.data);
         setAllUsers(res.data?.data || []);
       })
       .catch(err => console.error("Lỗi load user:", err));
@@ -205,7 +205,7 @@ const KioskPlanTable = ({ data, onDelete }) => {
   }, []);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto overflow-visible relative z-[999]">
       <div className="mb-4 flex justify-between items-center flex-wrap gap-2">
         <div className="flex gap-2 items-center flex-wrap">
           <input
@@ -251,12 +251,12 @@ const KioskPlanTable = ({ data, onDelete }) => {
       )}
 
       <table className="min-w-full table-fixed text-sm text-left border">
-        <thead className="bg-gray-100 text-xs font-semibold">
+        <thead className="bg-gray-800 text-white text-left text-sm">
           <tr>
-            <th className="p-2 border w-[50px] text-center">STT</th>
-            <th className="p-2 border w-[250px] text-center">Tên bệnh viện</th>
-            <th className="p-2 border w-[100px] text-center">Deadline</th>
-            <th className="p-2 border w-[100px] text-center relative">
+            <th className="px-4 py-6 border text-center">STT</th>
+            <th className="px-4 py-6 border text-center">Tên bệnh viện</th>
+            <th className="px-4 py-6 border text-center">Deadline</th>
+            <th className="px-4 py-6 border text-center">
               <div className="flex justify-center items-center gap-1">
                 <span>Ưu tiên</span>
                 <button
@@ -309,8 +309,8 @@ const KioskPlanTable = ({ data, onDelete }) => {
                 )}
               </div>
             </th>
-            <th className="p-2 border w-[200px] text-center">Trạng thái Dev</th>
-            <th className="p-2 border w-[200px] text-center relative">
+            <th className="px-4 py-6 border text-center">Trạng thái Dev</th>
+            <th className="px-4 py-6 border text-center">
               <div className="flex justify-center items-center gap-1">
                 <span>Người phụ trách</span>
                 <button

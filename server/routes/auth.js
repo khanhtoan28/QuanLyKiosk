@@ -45,6 +45,11 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Sai mật khẩu" });
     }
 
+    // ✅ Cập nhật trạng thái đang online
+    user.isOnline = true;
+    user.lastActive = new Date();
+    await user.save(); // << lưu thay đổi
+
     const token = jwt.sign({ id: user._id }, "secret_key", { expiresIn: "1h" });
 
     return res.status(200).json({
@@ -56,6 +61,8 @@ router.post("/login", async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          isOnline: user.isOnline,       // gửi về frontend
+          lastActive: user.lastActive,
         },
       },
     });
@@ -65,7 +72,24 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Get all users
+router.post("/logout", async (req, res) => {
+  const { id } = req.body;
+  try {
+    const user = await User.findById(id);
+    if (user) {
+      user.isOnline = false;
+      user.lastActive = new Date();
+      await user.save();
+    }
+    res.json({ message: "Đăng xuất thành công" });
+  } catch (err) {
+    console.error("Lỗi logout:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
+
+
+
 // GET /api/users?email=abc@gmail.com
 router.get("/users", async (req, res) => {
   const email = req.query.email;
@@ -137,5 +161,41 @@ router.put('/users/:id', upload.single('avatar'), async (req, res) => {
   }
 });
 
+// Cập nhật quyền (role) của user
+router.put("/users/:id/role", async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
 
+  // Kiểm tra role có hợp lệ không
+  if (!["user", "admin"].includes(role)) {
+    return res.status(400).json({ message: "Vai trò không hợp lệ" });
+  }
+
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    user.role = role;
+    await user.save();
+
+    return res.json({ message: "Cập nhật quyền thành công", data: user });
+  } catch (err) {
+    console.error("Lỗi cập nhật role:", err);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// routes/userRoutes.js
+router.delete("/users/:id", async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
+    res.status(200).json({ message: "Đã xoá người dùng" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+});
+ 
 export default router;

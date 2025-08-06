@@ -15,6 +15,7 @@ import kioskPlanRoutes from "./routes/kioskPlanRoutes.js";
 import dropdownRoutes from "./routes/dropdownOptions.js";
 import notificationsRoute from "./routes/notifications.js";
 import verifyEmailRoute from './routes/verifyEmail.js';
+import User from "./models/register.js";
 
 
 dotenv.config();
@@ -32,6 +33,26 @@ app.use("/api", notificationsRoute);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', verifyEmailRoute);
 
+
+app.put('/api/users/:id/status', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rawBody = req.body.toString();
+    const { isOnline } = JSON.parse(rawBody);
+
+    // Cập nhật DB
+    await User.findByIdAndUpdate(id, {
+      isOnline,
+      lastActive: new Date(),
+    });
+
+    console.log(`✅ Trạng thái user ${id} cập nhật thành:`, isOnline);
+    res.status(200).json({ message: "Trạng thái cập nhật" });
+  } catch (err) {
+    console.error("❌ Lỗi cập nhật trạng thái:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
 app.get("/", (req, res) => {
   res.send("✅ Backend server is running...");
 });

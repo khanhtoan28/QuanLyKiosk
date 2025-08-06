@@ -11,8 +11,6 @@ const Spinner = () => (
 const ProfilePage = () => {
   const localUser = JSON.parse(localStorage.getItem("user")) || {};
   const userId = localUser._id || localUser.id;
-
-
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,6 +25,19 @@ const ProfilePage = () => {
   const [sendingCode, setSendingCode] = useState(false);
   const [confirmingCode, setConfirmingCode] = useState(false);
   const timerRef = useRef(null);
+
+
+  const colors = [
+    "bg-red-500", "bg-green-500", "bg-blue-500",
+    "bg-yellow-500", "bg-pink-500", "bg-purple-500",
+    "bg-indigo-500", "bg-teal-500", "bg-rose-500",
+  ];
+
+  const getRandomColor = (name) => {
+    if (!name) return colors[0];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   const startCountdown = useCallback((expiryTime) => {
     const remaining = Math.floor((expiryTime - Date.now()) / 1000);
@@ -46,23 +57,33 @@ const ProfilePage = () => {
   }, []);
 
   useEffect(() => {
-    if (!userId) {
-      setError('Không tìm thấy ID người dùng.');
+  if (!userId) {
+    // ❌ Không có ID → clear localStorage và logout
+    localStorage.clear();
+    window.location.href = "/login";
+    return;
+  }
+
+  axios.get(`http://localhost:5000/api/users/${userId}`)
+    .then((res) => {
+      const userData = res.data.data;
+      setUser(userData);
+      setFormData({ name: userData.name, email: userData.email, avatar: null });
       setLoading(false);
-      return;
-    }
-    axios.get(`http://localhost:5000/api/users/${userId}`)
-      .then((res) => {
-        const userData = res.data.data;
-        setUser(userData);
-        setFormData({ name: userData.name, email: userData.email, avatar: null });
-        setLoading(false);
-      })
-      .catch(() => {
+    })
+    .catch((error) => {
+      if (error.response?.status === 404) {
+        // ❌ Người dùng đã bị xoá → logout
+        localStorage.clear();
+        window.location.href = "/";
+      } else {
         setError('Không thể tải thông tin người dùng.');
         setLoading(false);
-      });
-  }, [userId]);
+      }
+    });
+}, [userId]);
+
+
 
   useEffect(() => {
     const savedExpiry = localStorage.getItem('otp_expiry');
@@ -169,6 +190,15 @@ const ProfilePage = () => {
       setConfirmingCode(false);
     }
   };
+  const getInitialAvatar = (name) => {
+    const firstChar = name?.charAt(0)?.toUpperCase() || '?';
+    const color = getRandomColor(name);
+    return (
+      <div className={`w-full h-full rounded-full ${color} flex items-center justify-center text-white font-bold text-2xl`}>
+        {firstChar}
+      </div>
+    );
+  };
 
   const closeEmailModal = () => {
     setShowEmailModal(false);
@@ -191,15 +221,22 @@ const ProfilePage = () => {
           <div className="relative w-24 h-24 group">
             <input type="file" id="avatarUpload" accept="image/*" onChange={handleFileChange} className="hidden" />
             <label htmlFor="avatarUpload" className="cursor-pointer">
-              <img
-                src={
-                  formData.avatar
-                    ? URL.createObjectURL(formData.avatar)
-                    : user?.avatar || "https://i.pravatar.cc/150?img=3"
-                }
-                alt="Avatar"
-                className="w-full h-full rounded-full object-cover border group-hover:opacity-90"
-              />
+              {formData.avatar ? (
+                <img
+                  src={URL.createObjectURL(formData.avatar)}
+                  alt="Avatar"
+                  className="w-full h-full rounded-full object-cover border group-hover:opacity-90"
+                />
+              ) : user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt="Avatar"
+                  className="w-full h-full rounded-full object-cover border group-hover:opacity-90"
+                />
+              ) : (
+                getInitialAvatar(user?.name)
+              )}
+
             </label>
             {editing && (
               <label htmlFor="avatarUpload" className="absolute bottom-0 right-0 bg-white p-1 rounded-full shadow cursor-pointer hover:bg-gray-100" title="Đổi ảnh đại diện">

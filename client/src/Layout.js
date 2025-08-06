@@ -1,11 +1,38 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Menubar from "./Components/Menubar";
 import Navbar from "./Components/Navbar";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
+import axios from "axios";
+import "react-toastify/dist/ReactToastify.css";
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const page = location.pathname.split("/")[1] || "Dashboard";
+
+  // Tự động kiểm tra nếu user bị xoá → logout
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user || !user._id) return;
+
+      try {
+        await axios.get(`http://localhost:5000/api/users/${user._id}`);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          toast.error("Tài khoản đã bị xoá. Đăng xuất...");
+          localStorage.clear();
+          setTimeout(() => {
+            navigate("/");
+            window.location.reload();
+          }, 1500);
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -18,6 +45,7 @@ const Layout = () => {
         </div>
         <div className="mt-20 p-4 overflow-y-auto h-full bg-gray-50">
           <Outlet />
+          <ToastContainer />
         </div>
       </div>
     </div>

@@ -28,19 +28,23 @@ const Login = () => {
       });
 
       const data = await response.json();
-
       if (response.ok) {
         const user = data.data.user;
         localStorage.setItem("token", data.data.token);
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("userId", user.id || user._id);
 
-        setSuccessMessage("Đăng nhập thành công!");
+        // ✅ Thêm sự kiện tắt tab
+        window.addEventListener("beforeunload", () => {
+          const payload = JSON.stringify({ isOnline: false });
+          const blob = new Blob([payload], { type: "application/json" });
+          navigator.sendBeacon(`http://localhost:5000/api/users/${user.id}/status`, blob);
+        });
 
+        setSuccessMessage("Đăng nhập thành công!");
         setTimeout(() => {
           navigate("/dashboard");
         }, 1500);
-
 
 
       } else {

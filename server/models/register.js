@@ -20,6 +20,14 @@ const User = new mongoose.Schema(
       required: true,
     },
     avatar: String,
+     isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastActive: {
+      type: Date,
+      default: null,
+    },
   },
   {
     collection: "user-data",

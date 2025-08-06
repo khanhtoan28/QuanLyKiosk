@@ -4,7 +4,7 @@ import {
   dashboard,
   showcase,
   settings,
-  role,
+  user
 } from "../Assets/index";
 import { getUser } from "../utils/auth";
 import { useLocation, Link } from "react-router-dom";
@@ -23,7 +23,7 @@ const Menubar = () => {
     { name: "Hiện trạng triển khai", icon: showcase, link: "/kiosk-plans" },
 
     ...(userRole === "admin"
-      ? [{ name: "Permission & Role", icon: role, link: "/role-management" }]
+      ? [{ name: "Quản lý tài khoản", icon: user, link: "/role-management" }]
       : []),
     { name: "Settings", icon: settings, link: "/settings" },
   ];

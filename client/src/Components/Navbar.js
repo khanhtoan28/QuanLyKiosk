@@ -30,14 +30,52 @@ const Navbar = ({ pagename }) => {
     };
   }, []);
 
-  const handleLogout = () => {
-    clearUser();
-    navigate("/");
-  };
+const handleLogout = async () => {
+  try {
+    if (userInfo?.id) {
+      await fetch("http://localhost:5000/api/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: userInfo.id }),
+      });
+    }
+  } catch (err) {
+    console.error("Lỗi khi cập nhật trạng thái offline:", err);
+  }
+
+  clearUser();
+  navigate("/");
+};
+
 
   const handleProfile = () => {
     navigate("/profile");
   };
+
+useEffect(() => {
+  const handleBeforeUnload = () => {
+    if (userInfo?.id) {
+      const data = JSON.stringify({ isOnline: false });
+      const blob = new Blob([data], { type: "application/json" }); // 👈 Tạo Blob đúng chuẩn
+
+      const success = navigator.sendBeacon(
+        `http://localhost:5000/api/users/${userInfo.id}/status`,
+        blob
+      );
+
+      console.log("Gửi beacon khi tắt tab:", success);
+    }
+  };
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  return () => {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+  };
+}, [userInfo]);
+;
+
 
   return (
     <nav className="bg-white flex items-center justify-between h-20 px-8 shadow-sm">
